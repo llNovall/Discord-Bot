@@ -5,8 +5,9 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Tiny_Bot.DataClasses;
 
-namespace Tiny_Bot.DataClasses
+namespace Tiny_Bot.Services
 {
     class GIFTenorService
     {

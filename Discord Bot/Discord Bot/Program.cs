@@ -10,15 +10,14 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Tiny_Bot;
 using Tiny_Bot.Commands;
-using Tiny_Bot.DataClasses;
-using Tiny_Bot.Utility;
+using Tiny_Bot.Services;
 
-namespace Discord_Bot
+namespace Tiny_Bot
 {
-    class Program
+    static class Program
     {
+
         private static EventId _botID = new EventId(700, "Tsuki");
 
         static void Main(string[] args)
@@ -44,17 +43,16 @@ namespace Discord_Bot
                 MinimumLogLevel = LogLevel.Debug
             });
 
-            //CModuleLavalinkMusicData data = new CModuleLavalinkMusicData();
-
             ServiceProvider services = new ServiceCollection().AddSingleton<Random>()
-                                                              .AddSingleton<CModuleLavalinkMusicData>()
+                                                              .AddSingleton<LavalinkMusicService>()
                                                               .AddSingleton<DiscordEmbedBuilderHelper>()
                                                               .AddSingleton<GIFTenorService>()
+                                                              .AddSingleton<WhatIsMyMMRService>()
                                                               .BuildServiceProvider();
 
             CommandsNextExtension commands = discordClient.UseCommandsNext(new CommandsNextConfiguration()
             {
-                StringPrefixes = new[] { "!" },
+                StringPrefixes = new[] {"!"},
                 Services = services
             });
 
@@ -63,6 +61,7 @@ namespace Discord_Bot
             commands.RegisterCommands<CModuleLavalinkMusic>();
             commands.RegisterCommands<CModuleTeamBuilder>();
             commands.RegisterCommands<CModuleAdmin>();
+            commands.RegisterCommands<CModuleLeagueOfLegends>();
 
             commands.CommandExecuted += Commands_CommandExecuted;
             commands.CommandErrored += Commands_CommandErrored;
@@ -71,7 +70,7 @@ namespace Discord_Bot
 
             await discordClient.ConnectAsync();
             await InitializeLavalink(discordClient);
-
+            
             await Task.Delay(-1);
         }
 
@@ -99,8 +98,8 @@ namespace Discord_Bot
 
         private static Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
         {
-            e.Context.Client.Logger.LogInformation(_botID, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'");
-
+             e.Context.Client.Logger.LogInformation(_botID, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'");
+            
             return Task.CompletedTask;
         }
     }

@@ -5,11 +5,9 @@ using DSharpPlus.Lavalink;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Tiny_Bot.Commands.Enumerators;
-using Tiny_Bot.DataClasses;
-using Tiny_Bot.Utility;
+using Tiny_Bot.Services;
 
 namespace Tiny_Bot.Commands
 {
@@ -17,7 +15,7 @@ namespace Tiny_Bot.Commands
     //[Description("This is all the music commands I have at the moment. Feel free to let me know if you need more.")]
     class CModuleLavalinkMusic : BaseCommandModule
     {
-        public CModuleLavalinkMusicData Data;
+        public LavalinkMusicService Data;
         public DiscordEmbedBuilderHelper EmbedHelper;
 
         [Command("join")]

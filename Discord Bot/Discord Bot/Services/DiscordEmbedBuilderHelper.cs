@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Tiny_Bot.Utility
+namespace Tiny_Bot.Services
 {
     public class DiscordEmbedBuilderHelper
     {

@@ -6,13 +6,13 @@ using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Tiny_Bot.DataClasses
+namespace Tiny_Bot.Services
 {
-    class CModuleLavalinkMusicData
+    class LavalinkMusicService
     {
         private Dictionary<DiscordGuild, Queue<LavalinkTrack>> _playlist;
 
-        public CModuleLavalinkMusicData()
+        public LavalinkMusicService()
         {
             _playlist = new Dictionary<DiscordGuild, Queue<LavalinkTrack>>();
         }
