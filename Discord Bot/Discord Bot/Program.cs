@@ -1,4 +1,5 @@
 ﻿using Discord_Bot.Database;
+using Discord_Bot.Services;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.EventArgs;
@@ -59,6 +60,7 @@ namespace Tiny_Bot
                                                               .AddSingleton<GIFTenorService>()
                                                               .AddSingleton<WhatIsMyMMRService>()
                                                               .AddSingleton<DatabaseManager>()
+                                                              .AddSingleton<ChannelFinder>()
                                                               .BuildServiceProvider();
 
             CommandsNextConfiguration commandsNextConfiguration = new CommandsNextConfiguration()
