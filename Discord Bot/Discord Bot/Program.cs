@@ -1,5 +1,7 @@
-﻿using DSharpPlus;
+﻿using Discord_Bot.Database;
+using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.EventArgs;
 using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
 using DSharpPlus.VoiceNext;
@@ -15,17 +17,19 @@ using Tiny_Bot.Services;
 
 namespace Tiny_Bot
 {
-    static class Program
+    public class Program
     {
+        public readonly EventId BotID = new EventId(700, "Tsuki");
+        public DiscordClient DiscordClient { get; private set; }
+        public CommandsNextExtension Commands { get; private set; }
 
-        private static EventId _botID = new EventId(700, "Tsuki");
-
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            MainAsync().GetAwaiter().GetResult();
+            var prog = new Program();
+            prog.MainAsync().GetAwaiter().GetResult();
         }
 
-        internal static async Task MainAsync()
+        public async Task MainAsync()
         {
             string json = "";
             using (FileStream fileStream = File.OpenRead("config.json"))
@@ -34,48 +38,81 @@ namespace Tiny_Bot
 
             ConfigJson configJson = JsonConvert.DeserializeObject<ConfigJson>(json);
 
-            DiscordClient discordClient = new DiscordClient(new DiscordConfiguration()
+            DiscordConfiguration discordConfiguration = new DiscordConfiguration()
             {
+                AutoReconnect = true,
+                Intents = DiscordIntents.AllUnprivileged,
                 Token = configJson.Token,
                 TokenType = TokenType.Bot,
-                Intents = DiscordIntents.AllUnprivileged,
-                AutoReconnect = true,
                 MinimumLogLevel = LogLevel.Debug
-            });
+            };
+
+            DiscordClient = new DiscordClient(discordConfiguration);
+            DiscordClient.Ready += DiscordClient_Ready;
+            DiscordClient.GuildAvailable += Client_GuildAvailable;
+            DiscordClient.ClientErrored += Client_ClientError;
+            DiscordClient.MessageCreated += DiscordClient_MessageCreated;
 
             ServiceProvider services = new ServiceCollection().AddSingleton<Random>()
                                                               .AddSingleton<LavalinkMusicService>()
                                                               .AddSingleton<DiscordEmbedBuilderHelper>()
                                                               .AddSingleton<GIFTenorService>()
                                                               .AddSingleton<WhatIsMyMMRService>()
+                                                              .AddSingleton<DatabaseManager>()
                                                               .BuildServiceProvider();
 
-            CommandsNextExtension commands = discordClient.UseCommandsNext(new CommandsNextConfiguration()
+            CommandsNextConfiguration commandsNextConfiguration = new CommandsNextConfiguration()
             {
-                StringPrefixes = new[] {"!"},
+                EnableDms = false,
+                EnableMentionPrefix = true,
+                StringPrefixes = new[] { configJson.Prefix },
+                CaseSensitive = false,
+                EnableDefaultHelp = true,
+                IgnoreExtraArguments = true,
+                UseDefaultCommandHandler = true,
                 Services = services
-            });
+            };
 
-            commands.RegisterCommands<CModuleGreet>();
-            commands.RegisterCommands<CModuleSimpleMaths>();
-            commands.RegisterCommands<CModuleLavalinkMusic>();
-            commands.RegisterCommands<CModuleTeamBuilder>();
-            commands.RegisterCommands<CModuleAdmin>();
-            commands.RegisterCommands<CModuleLeagueOfLegends>();
+            Commands = DiscordClient.UseCommandsNext(commandsNextConfiguration);
+            Commands.RegisterCommands<CModuleGreet>();
+            Commands.RegisterCommands<CModuleSimpleMaths>();
+            Commands.RegisterCommands<CModuleLavalinkMusic>();
+            Commands.RegisterCommands<CModuleTeamBuilder>();
+            Commands.RegisterCommands<CModuleAdmin>();
+            Commands.RegisterCommands<CModuleLeagueOfLegends>();
 
-            commands.CommandExecuted += Commands_CommandExecuted;
-            commands.CommandErrored += Commands_CommandErrored;
+            Commands.CommandExecuted += Commands_CommandExecuted;
+            Commands.CommandErrored += Commands_CommandErrored;
 
-            discordClient.UseVoiceNext();
+            DiscordClient.UseVoiceNext();
 
-            await discordClient.ConnectAsync();
-            await InitializeLavalink(discordClient);
-            
+            await DiscordClient.ConnectAsync();
+            await InitializeLavalink(DiscordClient);
+
             await Task.Delay(-1);
         }
 
-        private async static Task InitializeLavalink(DiscordClient discordClient)
+        private Task DiscordClient_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
         {
+            sender.Logger.LogInformation(BotID, $"Channel : {e.Channel}\nMessage : {e.Message.Content}\nMessage Type : {e.Message.MessageType}");
+
+            return Task.CompletedTask;
+        }
+
+        private Task DiscordClient_Ready(DiscordClient sender, ReadyEventArgs e)
+        {
+            sender.Logger.LogInformation(BotID, "Client is ready to process events.");
+            return Task.CompletedTask;
+        }
+
+        private async Task InitializeLavalink(DiscordClient discordClient)
+        {
+            //Process lavalinkProcess = new Process();
+            //lavalinkProcess.StartInfo.UseShellExecute = false;
+            //lavalinkProcess.StartInfo.FileName = "java";
+            //lavalinkProcess.StartInfo.Arguments = "-jar D:\\C#Projects\\Tiny Bot\\LavaLink.Lavalink.jar";
+            //bool isStarted = lavalinkProcess.Start();
+
             var endpoint = new ConnectionEndpoint
             {
                 Hostname = "127.0.0.1",
@@ -91,16 +128,25 @@ namespace Tiny_Bot
 
             await discordClient.UseLavalink().ConnectAsync(lavalinkConfig);
         }
-        private async static Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
+
+        private async Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
         {
-            await e.Context.RespondAsync(e.Exception.Message);
+            await Task.Run(() => e.Context.Client.Logger.LogError(BotID, $"{e.Command} has issues.\nException : {e.Exception.Message}"));
         }
 
-        private static Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
+        private async Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
         {
-             e.Context.Client.Logger.LogInformation(_botID, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'");
-            
-            return Task.CompletedTask;
+            await Task.Run(() => e.Context.Client.Logger.LogInformation(BotID, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'"));
+        }
+
+        private async Task Client_GuildAvailable(DiscordClient sender, GuildCreateEventArgs e)
+        {
+            await Task.Run(() => sender.Logger.LogInformation(BotID, $"Guild available: {e.Guild.Name}"));
+        }
+
+        private async Task Client_ClientError(DiscordClient sender, ClientErrorEventArgs e)
+        {
+            await Task.Run(() => sender.Logger.LogError(BotID, e.Exception.Message, "Exception occured"));
         }
     }
 }
