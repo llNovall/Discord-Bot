@@ -1,10 +1,7 @@
 ﻿using Discord_Bot.Database;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Discord_Bot.Services
@@ -15,7 +12,7 @@ namespace Discord_Bot.Services
 
         public ChannelFinder(DatabaseManager databaseManager)
         {
-            DatabaseManager= databaseManager;
+            DatabaseManager = databaseManager;
         }
 
         public async Task<DiscordChannel> GetChannelFor(string channel_usage_type, CommandContext ctx)
@@ -25,6 +22,17 @@ namespace Discord_Bot.Services
 
             GuildChannelUsageData data = await DatabaseManager.GetGuildChannelUsageData(guildId: ctx.Guild.Id, channel_usage_type: channel_usage_type);
             DiscordChannel foundChannel = ctx.Guild.Channels.FirstOrDefault(c => c.Value.Id == data.ChannelId).Value;
+
+            return foundChannel;
+        }
+
+        public async Task<DiscordChannel> GetChannelFor(string channel_usage_type, DiscordGuild discordGuild)
+        {
+            if (string.IsNullOrEmpty(channel_usage_type))
+                return null;
+
+            GuildChannelUsageData data = await DatabaseManager.GetGuildChannelUsageData(guildId: discordGuild.Id, channel_usage_type: channel_usage_type);
+            DiscordChannel foundChannel = discordGuild.Channels.FirstOrDefault(c => c.Value.Id == data.ChannelId).Value;
 
             return foundChannel;
         }

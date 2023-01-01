@@ -1,708 +1,598 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using Discord_Bot.DataClasses;
+using Discord_Bot.Services;
+using DSharpPlus;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Tiny_Bot.Commands.Enumerators;
-using Tiny_Bot.Services;
 
-namespace Tiny_Bot.Commands
+namespace Discord_Bot.Commands
 {
     //[Group("Music")]
     //[Description("This is all the music commands I have at the moment. Feel free to let me know if you need more.")]
-    class CModuleLavalinkMusic : BaseCommandModule
+    internal class CModuleLavalinkMusic : BaseCommandModule
     {
-        public LavalinkMusicService Data;
+        public LavalinkMusicService LavalinkMusicService;
         public DiscordEmbedBuilderHelper EmbedHelper;
+        public ChannelFinder ChannelFinder;
 
-        [Command("join")]
-        [Description("I'll join your voice channel.")]
-        public async Task JoinChannel(CommandContext ctx)
+        private enum MessageStatus
         {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
+            LavalinkNotFound,
+            NodeNotFound,
+            GuildNotFound,
+            MusicChannelNotFound,
+            UserNotInVoiceChannel,
+            UserInSameChannelAsBot,
+            BotLeftVoiceChannel,
+            BotNotInVoiceChannel,
+            NoTracksFound,
+            MusicPlayerDataMissing,
+            JoinedVoiceChannel,
+            PlaylistCleared,
+            PlaylistShuffled
+        }
 
-            if (lavalink == null)
+        private enum MessageSeverity
+        {
+            Positive,
+            Neutral,
+            Negative
+        }
+
+        private async Task SendMessageToChannel(DiscordClient discordClient, MessageStatus status, DiscordChannel channelToSendMessage, MessageSeverity messageSeverity)
+        {
+            if (channelToSendMessage == null || discordClient == null)
                 return;
 
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithAuthor(name: discordClient.CurrentUser.Username, url: discordClient.CurrentUser.AvatarUrl, iconUrl: discordClient.CurrentUser.AvatarUrl)
+                .WithColor(messageSeverity == MessageSeverity.Positive ? DiscordColor.Green : messageSeverity == MessageSeverity.Negative ? DiscordColor.Red : DiscordColor.White);
 
-            if (!await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return;
+            string content = "";
 
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (connection != null)
+            switch (status)
             {
-                if (connection.Channel == ctx.Member.VoiceState.Channel)
-                {
-                    DiscordEmbedBuilder embed1 = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                    embed1.WithTitle($"I'm already in channel __*{connection.Channel.Name}*__.");
+                case MessageStatus.LavalinkNotFound:
+                    content = "I've failed to connect to lavalink service.";
+                    break;
 
-                    await ctx.Channel.SendMessageAsync(embed1);
-                    return;
-                }
-                else if(connection.Channel != null)
-                {
-                    await connection.DisconnectAsync();
-                }
+                case MessageStatus.NodeNotFound:
+                    content = "I've failed to find a suitable node.";
+                    break;
+
+                case MessageStatus.GuildNotFound:
+                    content = "I've failed to connect.";
+                    break;
+
+                case MessageStatus.MusicChannelNotFound:
+                    content = "I've failed to find the music channel.";
+                    break;
+
+                case MessageStatus.UserNotInVoiceChannel:
+                    content = "You have to be in a voice channel for me to join you.";
+                    break;
+
+                case MessageStatus.UserInSameChannelAsBot:
+                    content = "I'm already there with you.";
+                    break;
+
+                case MessageStatus.BotLeftVoiceChannel:
+                    content = "I've left the voice channel.";
+                    break;
+
+                case MessageStatus.BotNotInVoiceChannel:
+                    content = "I'm not in any voice channel.";
+                    break;
+
+                case MessageStatus.NoTracksFound:
+                    content = "I've failed to find any tracks.";
+                    break;
+
+                case MessageStatus.MusicPlayerDataMissing:
+                    content = "It seems I haven't fully initialized. Make sure I'm added to a voice channel by the join command.";
+                    break;
+
+                case MessageStatus.JoinedVoiceChannel:
+                    content = "I've joined the voice channel.";
+                    break;
+
+                case MessageStatus.PlaylistCleared:
+                    content = "I've cleared the playlist.";
+                    break;
+
+                case MessageStatus.PlaylistShuffled:
+                    content = "I've shuffled the playlist.";
+                    break;
+
+                default:
+                    break;
             }
 
-           
-            await node.ConnectAsync(ctx.Member.VoiceState.Channel);
+            embed.WithTitle(content);
 
-            connection = node.GetGuildConnection(ctx.Guild);
-            connection.PlaybackFinished += Connection_PlaybackFinished;
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-            embed.WithTitle($"I am in channel __*{connection.Channel.Name}*__ now.");
-
-            await ctx.Channel.SendMessageAsync(embed);
-            return;
+            await channelToSendMessage.SendMessageAsync(embed);
         }
 
-        [Command("join")]
-        public async Task JoinChannel(CommandContext ctx, DiscordChannel discordChannel)
+        private async Task<LavalinkExtension> GetLavalinkAsync(DiscordClient discordClient, DiscordChannel channelToMessage)
         {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
+            if (discordClient == null || channelToMessage == null) return null;
+
+            LavalinkExtension lavalink = discordClient.GetLavalink();
 
             if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            if (!await SendErrorMessageIfNotAValidVoiceChannel(ctx, discordChannel))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = lavalink.GetGuildConnection(ctx.Guild);
-
-            if (connection != null)
-            {
-                if (connection.Channel == discordChannel)
-                {
-                    await ctx.Channel.SendMessageAsync($"I'm already in channel __*{discordChannel}*__.");
-                    return;
-                }
-                else if (connection.Channel != null)
-                {
-                    await connection.DisconnectAsync();
-                }
-            }
-
-            await node.ConnectAsync(discordChannel);
-
-            connection = node.GetGuildConnection(ctx.Guild);
-            connection.PlaybackFinished += Connection_PlaybackFinished;
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-            embed.WithTitle($"I am in channel __*{connection.Channel.Name}*__ now.");
-
-            await ctx.Channel.SendMessageAsync(embed);
-        }
-        
-
-        [Command("leave")]
-        [Description("I'll the voice channel that I'm in.")]
-        public async Task LeaveChannel(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-            
-            if (connection != null)
-            {
-                string channelName = connection.Channel.Name;
-                await connection.DisconnectAsync();
-                embed.WithTitle($"I've left the channel __*{channelName}*__.");
-
-                Data.ClearTracksFromPlaylist(ctx.Guild);
-            }
-            else
-            {
-                embed.WithTitle("I am not in a voice channel.");
-            }
-
-            await ctx.Channel.SendMessageAsync(embed);
-        }
-
-
-        [Command("play")]
-        [Description("I can play song when provided with a search term or link.")]
-        public async Task PlayMusic(CommandContext ctx, [RemainingText] string search)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = await JoinMemberChannel(ctx, node);
-
-            if (connection == null)
-                return;
-
-            LavalinkLoadResult loadResult = await node.Rest.GetTracksAsync(search);
-
-            if(loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: I could't find anything for __*{search}*__ :no_entry:");
-
-                await ctx.Channel.SendMessageAsync(embed);
-
-                return;
-            }
-
-            connection.PlaybackFinished -= Connection_PlaybackFinished;
-            await PlayTrack(loadResult.Tracks.First(), connection, ctx);
-            connection.PlaybackFinished += Connection_PlaybackFinished;
-        }
-
-        
-        [Command("play")]
-        public async Task PlayMusic(CommandContext ctx, [RemainingText] Uri url)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = await JoinMemberChannel(ctx, node);
-
-            if (connection == null)
-                return;
-
-            LavalinkLoadResult loadResult = await node.Rest.GetTracksAsync(url);
-
-            if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches || loadResult.LoadResultType != LavalinkLoadResultType.TrackLoaded)
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry:I've failed to load song from this link.:no_entry:");
-                await ctx.Channel.SendMessageAsync(embed);
-                return;
-            }
-
-            connection.PlaybackFinished -= Connection_PlaybackFinished;
-            await PlayTrack(loadResult.Tracks.First(), connection, ctx);
-            connection.PlaybackFinished += Connection_PlaybackFinished;
-        }
-
-
-        [Command("pause")]
-        [Description("I can pause a song if it is being played.")]
-        public async Task PauseMusic(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (!await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            await UpdateMusicPlayState(ctx, connection, MusicCommandState.Pause);
-        }
-
-        [Command("resume")]
-        [Description("I can resume playing songs.")]
-        public async Task ResumeMusic(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            if (! await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (!await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInSameChannelAsBot(ctx, connection))
-                return;
-
-            await UpdateMusicPlayState(ctx, connection, MusicCommandState.Resume);
-        }
-
-        [Command("skip")]
-        [Aliases("stop")]
-        [Description("I can skip current song.")]
-        public async Task StopMusic(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (!await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInSameChannelAsBot(ctx, connection))
-                return;
-
-            await UpdateMusicPlayState(ctx, connection, MusicCommandState.Stop);
-        }
-
-        [Command("pl")]
-        [Description("I can play from a long list of songs when provided with a playlist link.")]
-        public async Task PlayPlaylist(CommandContext ctx, Uri url)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-
-            LavalinkGuildConnection connection = await JoinMemberChannel(ctx, node);
-
-            if (connection == null)
-                return;
-
-            if (!await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            LavalinkLoadResult result = await connection.GetTracksAsync(url);
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-
-            if(result.LoadResultType == LavalinkLoadResultType.LoadFailed || result.LoadResultType != LavalinkLoadResultType.PlaylistLoaded)
-            {
-                embed.WithTitle(":no_entry:I've failed to load the playlist:no_entry:");
-
-                await ctx.Channel.SendMessageAsync(embed);
-                return;
-            }
-            
-            embed.WithTitle($"I've loaded playlist __*{result.PlaylistInfo.Name}*__ with __*{result.Tracks.Count()}*__ tracks.");
-
-            await ctx.Channel.SendMessageAsync(embed);
-
-            await Data.AddTracksToPlaylist(ctx.Guild, result.Tracks);
-
-            if(connection.CurrentState.CurrentTrack == null)
-            {
-                LavalinkTrack track = Data.GetNextTrack(ctx.Guild);
-
-                
-                if (track == null)
-                {
-                    embed.WithTitle("`I'm out of songs to play...`");
-                    await ctx.Channel.SendMessageAsync(embed);
-                    return;
-                }
-
-                await PlayTrack(track, connection, ctx);
-            }
-        }
-
-        [Command("queue")]
-        [Description("I can show you all the songs in the queue.")]
-        public async Task ShowQueue(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = lavalink.GetGuildConnection(ctx.Guild);
-
-            if (! await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            List<LavalinkTrack> tracks = Data.GetDefinedTracksFromPlaylist(connection.Guild, 10);
-
-            string playlistInfo = "```";
-
-            if (tracks.Count > 0)
-                tracks.ForEach(c => playlistInfo += $"{tracks.IndexOf(c) + 1}) {c.Title} - {c.Length:g}.\n");
-            else
-                playlistInfo += "I have nothing left to play...";
-
-            playlistInfo += "```";
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-
-            embed.AddField("Currently Playing", connection.CurrentState.CurrentTrack != null ? $"```{connection.CurrentState.CurrentTrack.Title}```" : "```I'm playing silence right now...```");
-            embed.AddField("Queue Information", playlistInfo, true);
-
-            await ctx.Channel.SendMessageAsync(embed);
-        }
-       
-
-        [Command("np")]
-        [Description("I will let you know about the current song being played.")]
-        public async Task ShowCurrentTrack(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = lavalink.GetGuildConnection(ctx.Guild);
-
-            if (! await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-
-            if (connection.CurrentState.CurrentTrack != null)
-                embed.AddField("Now Playing", $"`{connection.CurrentState.CurrentTrack.Title}`");
-            else
-                embed.WithTitle("`I'm playing silence right now...`");
-
-            await ctx.Channel.SendMessageAsync(embed);
-        }
-
-        [Command("clear")]
-        [Description("I will remove everything from my playlist...")]
-        public async Task ClearPlaylist(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (!await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInSameChannelAsBot(ctx, connection))
-                return;
-
-            Data.ClearTracksFromPlaylist(connection.Guild);
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-            embed.WithTitle($"```I've removed everything from the playlist...```");
-
-            await ctx.Channel.SendMessageAsync(embed);
-        }
-
-        [Command("shuffle")]
-        [Description("I will shuffle everything in the playlist.")]
-        public async Task ShufflePlaylist(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = await GetLavalink(ctx);
-
-            if (lavalink == null)
-                return;
-
-            if (!await SendErrorMessageIfNodesNotAvailable(ctx, lavalink))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return;
-
-            LavalinkNodeConnection node = lavalink.GetIdealNodeConnection();
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (!await SendErrorMessageIfBotNotInAVoiceChannel(ctx, connection))
-                return;
-
-            if (!await SendErrorMessageIfMemberNotInSameChannelAsBot(ctx, connection))
-                return;
-
-            await Data.ShufflePlaylist(connection.Guild);
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-            embed.WithTitle($"I've shuffled everything in the playlist.");
-
-            await ctx.Channel.SendMessageAsync(embed);
-        }
-        private async Task<LavalinkExtension> GetLavalink(CommandContext ctx)
-        {
-            LavalinkExtension lavalink = ctx.Client.GetLavalink();
-
-            if (lavalink == null)
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: Lavalink is not configured :no_entry:");
-
-                await ctx.Channel.SendMessageAsync(embed);
-            }
+                await SendMessageToChannel(
+                    discordClient: discordClient,
+                    status: MessageStatus.LavalinkNotFound,
+                    channelToSendMessage: channelToMessage,
+                    MessageSeverity.Negative);
 
             return lavalink;
         }
 
-        private bool IsMemberInVoiceChannel(CommandContext ctx)
+        private async Task<LavalinkNodeConnection> GetLavalinkNodeConnectionAsync(DiscordClient discordClient, DiscordChannel channelToMessage, LavalinkExtension lavalink)
         {
-            if (ctx.Member?.VoiceState?.Channel == null)
-                return false;
+            if (discordClient == null || channelToMessage == null || lavalink == null) return null;
 
-            return true;
+            LavalinkNodeConnection nodeConnection = lavalink.GetIdealNodeConnection();
+
+            if (nodeConnection == null)
+                await SendMessageToChannel(
+                    discordClient: discordClient,
+                    status: MessageStatus.NodeNotFound,
+                    channelToSendMessage: channelToMessage,
+                    MessageSeverity.Negative);
+
+            return nodeConnection;
         }
 
-        private bool IsMemberInSameVoiceChannelAsBot(CommandContext ctx, LavalinkGuildConnection connection)
+        private async Task<bool> IsMemberInVoiceChannel(DiscordMember discordMember, DiscordClient discordClient, DiscordChannel channelToMessage)
         {
-            if(connection != null && ctx != null)
+            if (discordMember?.VoiceState?.Channel == null)
             {
-                if (IsMemberInVoiceChannel(ctx))
-                {
-                    if (ctx.Member.VoiceState.Channel == connection.Channel)
-                        return true;
-                }
-            }
-
-            return false;
-        }
-        private async Task<bool> SendErrorMessageIfMemberNotInAVoiceChannel(CommandContext ctx)
-        {
-            if (!IsMemberInVoiceChannel(ctx))
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: You are not in a voice channel :no_entry:");
-                await ctx.Channel.SendMessageAsync(embed);
+                await SendMessageToChannel(discordClient, MessageStatus.UserNotInVoiceChannel, channelToMessage, MessageSeverity.Negative);
                 return false;
             }
 
             return true;
         }
 
-        private async Task<bool> SendErrorMessageIfNotAValidVoiceChannel(CommandContext ctx, DiscordChannel discordChannel)
+        private async Task<(MusicPlayerData, DiscordChannel)> GetMusicPlayerDataAndMusicChannel(DiscordClient discordClient, DiscordGuild discordGuild, DiscordChannel altChannelToSendMessage, DiscordMember discordMember)
         {
-            if(discordChannel.Type != DSharpPlus.ChannelType.Voice)
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: This is not a valid voice channel. :no_entry:");
-                await ctx.Channel.SendMessageAsync(embed);
+            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", discordGuild);
 
-                return false;
+            if (musicChannel == null)
+            {
+                await SendMessageToChannel(discordClient, MessageStatus.MusicChannelNotFound, altChannelToSendMessage, MessageSeverity.Negative);
+                return (null, null);
             }
 
-            return true;
-        }
-        private async Task<bool> SendErrorMessageIfNodesNotAvailable(CommandContext ctx, LavalinkExtension lavalink)
-        {
-            if (!lavalink.ConnectedNodes.Any())
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: I'm unable to establish any connection with lavalink nodes. :no_entry:");
-                await ctx.Channel.SendMessageAsync(embed);
+            bool isMemberInVoiceChannel = await IsMemberInVoiceChannel(discordMember, discordClient, musicChannel);
+            if (!isMemberInVoiceChannel) return (null, null);
 
-                return false;
+            MusicPlayerData musicPlayerData = LavalinkMusicService.GetMusicPlayerData(discordGuild.Id);
+
+            if (musicPlayerData?.LavalinkGuildConnection?.Channel == null)
+            {
+                await SendMessageToChannel(
+                         discordClient: discordClient,
+                         status: MessageStatus.BotNotInVoiceChannel,
+                         channelToSendMessage: musicChannel,
+                         messageSeverity: MessageSeverity.Negative);
+
+                return (null, null);
             }
 
-            return true;
-        }
-
-        private async Task<bool> SendErrorMessageIfMemberNotInSameChannelAsBot(CommandContext ctx, LavalinkGuildConnection connection)
-        {
-            if (!IsMemberInSameVoiceChannelAsBot(ctx, connection))
-            {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: You have to be in the channel __*{ctx.Channel.Name}*__ to use this command :no_entry:");
-                
-                await ctx.Channel.SendMessageAsync(embed);
-
-                return false;
-            }
-
-            return true;
+            return (musicPlayerData, musicChannel);
         }
 
-        private async Task<bool> SendErrorMessageIfBotNotInAVoiceChannel(CommandContext ctx, LavalinkGuildConnection connection)
+        [Command("join")]
+        public async Task JoinChannelAsync(CommandContext ctx)
         {
-            if (connection == null)
+            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", ctx);
+
+            if (musicChannel == null)
             {
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($":no_entry: I'm not in a voice channel (Use *join* command) :no_entry:");
-
-                await ctx.Channel.SendMessageAsync(embed);
-                return false;
-            }
-
-            return true;
-        }
-
-        private async Task UpdateMusicPlayState(CommandContext ctx, LavalinkGuildConnection connection, MusicCommandState state)
-        {
-            if (connection != null && ctx.Member.VoiceState.Channel == connection.Channel)
-            {
-                string message = "";
-
-                if (ctx.Member.VoiceState.Channel == connection.Channel)
-                {
-                    if (connection.CurrentState.CurrentTrack != null)
-                    {
-                        
-
-                        switch (state)
-                        {
-                    
-                            case MusicCommandState.Pause:
-                                await connection.PauseAsync();
-                                message = $"I've paused the track __*{connection.CurrentState.CurrentTrack.Title}*__.";
-                                break;
-                            case MusicCommandState.Resume:
-                                await connection.ResumeAsync();
-                                message = $"I've resumed the track __*{connection.CurrentState.CurrentTrack.Title}*__.";
-
-                                break;
-                            case MusicCommandState.Stop:
-                                await connection.StopAsync();
-                                message = $"I've skipped the track __*{connection.CurrentState.CurrentTrack.Title}*__.";
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        message = "`I'm out of songs to play...`";
-                    }
-
-                }
-                else
-                {
-                    switch (state)
-                    {
-                        
-                        case MusicCommandState.Pause:
-                            message = $"You must be in the channel __*{connection.Channel.Name}*__ to play.";
-                            break;
-                        case MusicCommandState.Resume:
-                            message = $"You must be in the channel __*{connection.Channel.Name}*__ to resume.";
-                            break;
-                        case MusicCommandState.Stop:
-                            message = $"You must be in the channel __*{connection.Channel.Name}*__ to stop.";
-                            break;
-                        default:
-                            break;
-                    }
-                }
-
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle(message);
-                await ctx.Channel.SendMessageAsync(embed);
-            }
-        }
-
-        private async Task<LavalinkGuildConnection> JoinMemberChannel(CommandContext ctx, LavalinkNodeConnection node)
-        {
-            if (! await SendErrorMessageIfMemberNotInAVoiceChannel(ctx))
-                return null;
-
-            LavalinkGuildConnection connection = node.GetGuildConnection(ctx.Guild);
-
-            if (connection?.Channel != null && ctx.Member.VoiceState?.Channel != null)
-            {
-                if(connection.Channel != ctx.Member.VoiceState.Channel)
-                {
-                    await connection.DisconnectAsync();
-                    connection = null;
-                }
-            }
-
-            if (connection == null)
-            {
-                await node.ConnectAsync(ctx.Member.VoiceState.Channel);
-
-                connection = node.GetGuildConnection(ctx.Guild);
-                connection.PlaybackFinished += Connection_PlaybackFinished;
-
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.WithTitle($"I've joined __*{connection.Channel.Name}*__");
-                await ctx.Channel.SendMessageAsync(embed);
-            }
-
-            return connection;
-        }
-
-        private async Task PlayTrack(LavalinkTrack track, LavalinkGuildConnection connection, CommandContext ctx)
-        {
-            if (connection != null && ctx != null && track != null)
-            {
-                await connection.PlayAsync(track);
-
-                DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(ctx.Client);
-                embed.AddField("Now Playing", $"`{track.Title}!`");
-
-                await ctx.Channel.SendMessageAsync(embed);
-            }
-        }
-
-        private async Task Connection_PlaybackFinished(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs e)
-        {
-            LavalinkTrack track = Data.GetNextTrack(sender.Guild);
-
-            DiscordChannel discordChannel = sender.Guild.Channels.Where(c => c.Value.Type == DSharpPlus.ChannelType.Text).FirstOrDefault().Value;
-
-            DiscordEmbedBuilder embed = EmbedHelper.GetDefaultEmbedTemplate(sender.Node.Discord);
-  
-            if (track == null)
-            {
-                embed.WithTitle("`I'm out of songs to play...`");
-
-                await discordChannel.SendMessageAsync(embed);
+                await SendMessageToChannel(ctx.Client, MessageStatus.MusicChannelNotFound, ctx.Channel, MessageSeverity.Negative);
                 return;
             }
 
-            await sender.PlayAsync(track);
+            LavalinkExtension lavalink = await GetLavalinkAsync(ctx.Client, musicChannel);
+            if (lavalink == null) return;
 
-            embed.AddField("Now Playing", $"`{track.Title}`");
-            await discordChannel.SendMessageAsync(embed);
+            LavalinkNodeConnection nodeConnection = await GetLavalinkNodeConnectionAsync(ctx.Client, musicChannel, lavalink);
+            if (nodeConnection == null) return;
+
+            bool isMemberInVoiceChannel = await IsMemberInVoiceChannel(ctx.Member, ctx.Client, musicChannel);
+            if (!isMemberInVoiceChannel) return;
+
+            LavalinkGuildConnection guildConnection = nodeConnection.GetGuildConnection(ctx.Guild);
+
+            if (guildConnection != null)
+            {
+                if (guildConnection.Channel == ctx.Member.VoiceState.Channel)
+                {
+                    await SendMessageToChannel(
+                        discordClient: ctx.Client,
+                        status: MessageStatus.UserInSameChannelAsBot,
+                        channelToSendMessage: musicChannel,
+                        messageSeverity: MessageSeverity.Neutral);
+
+                    return;
+                }
+                else if (guildConnection.Channel != null)
+                    await guildConnection.DisconnectAsync(shouldDestroy: true);
+            }
+
+            guildConnection = await nodeConnection.ConnectAsync(ctx.Member.VoiceState.Channel);
+
+            MusicPlayerData musicPlayerData = LavalinkMusicService.CreateMusicPlayerData(ctx.Guild.Id);
+            musicPlayerData.LavalinkGuildConnection = guildConnection;
+
+            guildConnection.PlaybackStarted += GuildConnection_PlaybackStarted;
+            guildConnection.PlaybackFinished += GuildConnection_PlaybackFinished;
+            guildConnection.PlayerUpdated += GuildConnection_PlayerUpdated;
+
+            await SendMessageToChannel(
+                        discordClient: ctx.Client,
+                        status: MessageStatus.JoinedVoiceChannel,
+                        channelToSendMessage: musicChannel,
+                        messageSeverity: MessageSeverity.Positive);
+        }
+
+        private async Task GuildConnection_PlayerUpdated(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs e)
+        {
+            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", sender.Guild);
+            //e.Handled = true;
+            //await musicChannel.SendMessageAsync("PLAYBACK UPDATED");
+        }
+
+        private async Task GuildConnection_PlaybackStarted(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs e)
+        {
+            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", sender.Guild);
+            MusicPlayerData musicPlayerData = LavalinkMusicService.GetMusicPlayerData(sender.Guild.Id);
+
+            TrackData trackData = musicPlayerData.GetCurrentTrack();
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithTitle("Now Playing")
+                .WithDescription($"{trackData.Track.Title} (Added By {trackData.DiscordMemberName})")
+                .WithColor(DiscordColor.Rose)
+                .WithAuthor(name: sender.Guild.CurrentMember.Username, url: sender.Guild.CurrentMember.AvatarUrl, iconUrl: sender.Guild.CurrentMember.AvatarUrl);
+
+            await musicChannel.SendMessageAsync(embed);
+        }
+
+        private async Task GuildConnection_PlaybackFinished(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs e)
+        {
+            MusicPlayerData musicPlayerData = LavalinkMusicService.GetMusicPlayerData(sender.Guild.Id);
+            if (musicPlayerData == null)
+                return;
+
+            LavalinkTrack lavalinkTrack = musicPlayerData.GetNextTrack().Track;
+            if (lavalinkTrack == null)
+            {
+                musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Stop;
+                return;
+            }
+
+            await musicPlayerData.LavalinkGuildConnection.PlayAsync(lavalinkTrack);
+        }
+
+        [Command("leave")]
+        public async Task LeaveChannelAsync(CommandContext ctx)
+        {
+            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", ctx);
+
+            if (musicChannel == null)
+            {
+                await SendMessageToChannel(ctx.Client, MessageStatus.MusicChannelNotFound, ctx.Channel, MessageSeverity.Negative);
+                return;
+            }
+
+            bool isMemberInVoiceChannel = await IsMemberInVoiceChannel(ctx.Member, ctx.Client, musicChannel);
+            if (!isMemberInVoiceChannel) return;
+
+            MusicPlayerData musicPlayerData = LavalinkMusicService.GetMusicPlayerData(ctx.Guild.Id);
+            if (musicPlayerData == null) return;
+
+            if (musicPlayerData.LavalinkGuildConnection != null)
+            {
+                musicPlayerData.LavalinkGuildConnection.PlaybackFinished -= GuildConnection_PlaybackFinished;
+                musicPlayerData.LavalinkGuildConnection.PlayerUpdated -= GuildConnection_PlayerUpdated;
+                musicPlayerData.LavalinkGuildConnection.PlaybackStarted -= GuildConnection_PlaybackStarted;
+
+                await musicPlayerData.LavalinkGuildConnection.DisconnectAsync(shouldDestroy: true);
+                await SendMessageToChannel(
+                         discordClient: ctx.Client,
+                         status: MessageStatus.BotLeftVoiceChannel,
+                         channelToSendMessage: musicChannel,
+                         messageSeverity: MessageSeverity.Positive);
+            }
+            else
+            {
+                await SendMessageToChannel(
+                        discordClient: ctx.Client,
+                        status: MessageStatus.BotNotInVoiceChannel,
+                        channelToSendMessage: musicChannel,
+                        messageSeverity: MessageSeverity.Neutral);
+            }
+        }
+
+        [Command("queue")]
+        public async Task QueueSongAsync(CommandContext ctx, [RemainingText] Uri search)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            LavalinkLoadResult loadResult = await musicPlayerData.LavalinkGuildConnection.GetTracksAsync(search);
+
+            if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
+            {
+                await SendMessageToChannel(
+                        discordClient: ctx.Client,
+                        status: MessageStatus.NoTracksFound,
+                        channelToSendMessage: musicChannel,
+                        messageSeverity: MessageSeverity.Negative);
+                return;
+            }
+
+            musicPlayerData.AddATrackToPlaylist(loadResult.Tracks.First(), ctx.Member.DisplayName);
+
+            if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Stop)
+            {
+                LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
+                await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
+
+                musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
+            }
+        }
+
+        [Command("queue")]
+        public async Task QueueSongAsync(CommandContext ctx, [RemainingText] string search)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            LavalinkLoadResult loadResult = await musicPlayerData.LavalinkGuildConnection.GetTracksAsync(search, LavalinkSearchType.Youtube);
+
+            if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
+            {
+                await SendMessageToChannel(
+                        discordClient: ctx.Client,
+                        status: MessageStatus.NoTracksFound,
+                        channelToSendMessage: musicChannel,
+                        messageSeverity: MessageSeverity.Negative);
+                return;
+            }
+
+            musicPlayerData.AddATrackToPlaylist(loadResult.Tracks.First(), ctx.Member.DisplayName);
+
+            if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Stop)
+            {
+                LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
+                await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
+                await musicPlayerData.LavalinkGuildConnection.ResumeAsync();
+
+                musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
+            }
+        }
+
+        [Command("queuepl")]
+        public async Task QueuePlaylistAsync(CommandContext ctx, [RemainingText] Uri search)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            LavalinkLoadResult loadResult = await musicPlayerData.LavalinkGuildConnection.GetTracksAsync(search);
+
+            if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
+            {
+                await SendMessageToChannel(
+                        discordClient: ctx.Client,
+                        status: MessageStatus.NoTracksFound,
+                        channelToSendMessage: musicChannel,
+                        messageSeverity: MessageSeverity.Negative);
+                return;
+            }
+
+            musicPlayerData.AddTracksToPlaylist(loadResult.Tracks, ctx.Member.DisplayName);
+
+            if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Stop)
+            {
+                LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
+                await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
+
+                musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
+            }
+        }
+
+        [Command("pause")]
+        public async Task PauseSongAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Play)
+            {
+                await musicPlayerData.LavalinkGuildConnection.PauseAsync();
+            }
+        }
+
+        [Command("resume")]
+        public async Task ResumeSongAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Pause)
+            {
+                await musicPlayerData.LavalinkGuildConnection.ResumeAsync();
+            }
+        }
+
+        [Command("stop"), Aliases("skip")]
+        public async Task StopSongAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            LavalinkTrack lavalinkTrack = musicPlayerData.GetNextTrack().Track;
+            await musicPlayerData.LavalinkGuildConnection.PlayAsync(lavalinkTrack);
+        }
+
+        [Command("clear")]
+        public async Task ClearPlaylistAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            musicPlayerData.ClearPlaylist();
+
+            await SendMessageToChannel(
+                         discordClient: ctx.Client,
+                         status: MessageStatus.PlaylistCleared,
+                         channelToSendMessage: musicChannel,
+                         messageSeverity: MessageSeverity.Positive);
+        }
+
+        [Command("shuffle")]
+        public async Task ShufflePlaylistAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            await musicPlayerData.ShufflePlaylist();
+
+            await SendMessageToChannel(
+                         discordClient: ctx.Client,
+                         status: MessageStatus.PlaylistShuffled,
+                         channelToSendMessage: musicChannel,
+                         messageSeverity: MessageSeverity.Positive);
+        }
+
+        [Command("showqueue")]
+        public async Task ShowQueueAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            InteractivityExtension interactivity = ctx.Client.GetInteractivity();
+
+            string content = "";
+
+            for (int i = 0; i < musicPlayerData.Playlist.Count; i++)
+            {
+                content += $"{i + 1}) {musicPlayerData.Playlist[i].Track.Title} (Added by {musicPlayerData.Playlist[i].DiscordMemberName})\n";
+            }
+
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithColor(DiscordColor.Rose)
+                .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl);
+
+            var pages = interactivity.GeneratePagesInEmbed(content, splittype: DSharpPlus.Interactivity.Enums.SplitType.Character, embedbase: embed);
+
+            await musicChannel.SendPaginatedMessageAsync(ctx.Member, pages);
+        }
+
+        [Command("np")]
+        public async Task ShowNowPlayingAsync(CommandContext ctx)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            TrackData trackData = musicPlayerData.GetCurrentTrack();
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithTitle("Now Playing")
+                .WithDescription($"{trackData.Track.Title} (Added By {trackData.DiscordMemberName})")
+                .WithColor(DiscordColor.Rose)
+            .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl);
+
+            await musicChannel.SendMessageAsync(embed);
         }
     }
 }
