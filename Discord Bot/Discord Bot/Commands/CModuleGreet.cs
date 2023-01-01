@@ -1,19 +1,13 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using Discord_Bot.Services;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Text;
 using System.Threading.Tasks;
-using Tiny_Bot.DataClasses;
-using Tiny_Bot.Utility;
 
-namespace Tiny_Bot.Commands
+namespace Discord_Bot.Commands
 {
-    class CModuleGreet : BaseCommandModule
+    internal class CModuleGreet : BaseCommandModule
     {
         public DiscordEmbedBuilderHelper EmbedHelper;
         public Random Random;
@@ -34,12 +28,12 @@ namespace Tiny_Bot.Commands
         }
 
         [Command("greet")]
-        [Cooldown(1,3,CooldownBucketType.Guild)]
+        [Cooldown(1, 3, CooldownBucketType.Guild)]
         public async Task Greet(CommandContext ctx, DiscordUser discordUser)
         {
             string url = "";
 
-            if(ctx.Client.CurrentUser == discordUser)
+            if (ctx.Client.CurrentUser == discordUser)
             {
                 url = await GIFTenorService.GetGIFUrl("animewave", 25);
 
@@ -51,7 +45,6 @@ namespace Tiny_Bot.Commands
                 }
                 else
                     Console.WriteLine($"Failed to load GIF.");
-
             }
             else if (ctx.Member == discordUser)
             {
@@ -75,8 +68,6 @@ namespace Tiny_Bot.Commands
                 else
                     Console.WriteLine($"Failed to load GIF.");
             }
-
-            
         }
 
         [Command("cat")]
@@ -90,7 +81,6 @@ namespace Tiny_Bot.Commands
             }
             else
                 Console.WriteLine($"Failed to load GIF.");
-            
         }
 
         [Command("dog")]

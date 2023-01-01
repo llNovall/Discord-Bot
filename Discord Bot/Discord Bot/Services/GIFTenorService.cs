@@ -1,23 +1,19 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
-using Tiny_Bot.DataClasses;
+using Discord_Bot.DataClasses;
 
-namespace Tiny_Bot.Services
+namespace Discord_Bot.Services
 {
-    class GIFTenorService
+    internal class GIFTenorService
     {
-        
-
-        private string _apikey = "";
+        private string _apikey = "AIzaSyBSnnoeNrkFxJHHIy1qQ9yrwyTwDVIlS7Q";
 
         public async Task<string> GetGIFUrl(string searchTerm, int limit)
         {
-            string request = $"https://g.tenor.com/v1/random?q={searchTerm}&key={_apikey}&limit={limit}";
+            string request = $"https://tenor.googleapis.com/v2/search?q={searchTerm}&key={_apikey}&limit={limit}";
 
             string json = await GetGIFAsync(request);
 
@@ -25,7 +21,7 @@ namespace Tiny_Bot.Services
             {
                 TenorData gifData = JsonConvert.DeserializeObject<TenorData>(json);
                 Random random = new Random();
-                return gifData.Results[random.Next(0, limit - 1)].Media[0].Gif.Url;
+                return gifData.Results[random.Next(0, limit - 1)].Url;
             }
 
             return null;
@@ -36,21 +32,19 @@ namespace Tiny_Bot.Services
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
             request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
 
-            HttpWebResponse response = (HttpWebResponse) await request.GetResponseAsync();
-            if(response.StatusCode == HttpStatusCode.OK)
-            {
-                using (Stream stream = response.GetResponseStream())
-                using (StreamReader reader = new StreamReader(stream))
-                {
-                    return await reader.ReadToEndAsync();
-                }
-            }
-            else
+            HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
+
+            if (response.StatusCode != HttpStatusCode.OK)
             {
                 Console.WriteLine($"Failed to find response {response.StatusCode}.");
+                return null;
             }
 
-            return null;
+            using (Stream stream = response.GetResponseStream())
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                return await reader.ReadToEndAsync();
+            }
         }
     }
 }

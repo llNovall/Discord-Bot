@@ -1,8 +1,12 @@
-﻿using Discord_Bot.Database;
+﻿using Discord_Bot.Commands;
+using Discord_Bot.Config;
+using Discord_Bot.Database;
 using Discord_Bot.Services;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.EventArgs;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
 using DSharpPlus.VoiceNext;
@@ -13,10 +17,8 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Tiny_Bot.Commands;
-using Tiny_Bot.Services;
 
-namespace Tiny_Bot
+namespace Discord_Bot
 {
     public class Program
     {
@@ -82,11 +84,21 @@ namespace Tiny_Bot
             Commands.RegisterCommands<CModuleTeamBuilder>();
             Commands.RegisterCommands<CModuleAdmin>();
             Commands.RegisterCommands<CModuleLeagueOfLegends>();
+            Commands.RegisterCommands<CModuleLavalinkPlayer>();
+            //Commands.RegisterCommands<CModuleTest>();
 
             Commands.CommandExecuted += Commands_CommandExecuted;
             Commands.CommandErrored += Commands_CommandErrored;
 
             DiscordClient.UseVoiceNext();
+
+            DiscordClient.UseInteractivity(new InteractivityConfiguration()
+            {
+                Timeout = TimeSpan.FromMinutes(2),
+                AckPaginationButtons = true,
+                ResponseBehavior = DSharpPlus.Interactivity.Enums.InteractionResponseBehavior.Respond,
+                ResponseMessage = "Failed Interaction or something"
+            });
 
             await DiscordClient.ConnectAsync();
             await InitializeLavalink(DiscordClient);

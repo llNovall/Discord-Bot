@@ -3,10 +3,9 @@ using Discord_Bot.Services;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using System.Linq;
 using System.Threading.Tasks;
 
-namespace Tiny_Bot.Commands
+namespace Discord_Bot.Commands
 {
     internal class CModuleAdmin : BaseCommandModule
     {
@@ -35,7 +34,6 @@ namespace Tiny_Bot.Commands
         [Command("setadminchannel"), RequirePermissions(DSharpPlus.Permissions.Administrator)]
         public async Task SetAdminChannel(CommandContext ctx, DiscordChannel discordChannel)
         {
-            
             DiscordChannel adminChannel = await ChannelFinder.GetChannelFor("admin", ctx);
             DiscordChannel channelToSendMessage = adminChannel != null ? adminChannel : ctx.Channel;
 
@@ -55,7 +53,7 @@ namespace Tiny_Bot.Commands
 
             adminChannel = await ChannelFinder.GetChannelFor("admin", ctx);
 
-            if(adminChannel == null)
+            if (adminChannel == null)
             {
                 await channelToSendMessage.SendMessageAsync("Failed to retrieve admin channel from the database.");
                 return;
@@ -79,7 +77,7 @@ namespace Tiny_Bot.Commands
                 return;
             }
 
-            if(discordChannel == null)
+            if (discordChannel == null)
             {
                 await adminChannel.SendMessageAsync("Pass in the channel to be used for music as parameter.");
                 return;
@@ -87,7 +85,7 @@ namespace Tiny_Bot.Commands
 
             bool isUpdated = await DatabaseManager.UpdateChannelUsageForChannel(guildId: ctx.Guild.Id, channelId: discordChannel.Id, channel_usage_type: "music");
 
-            if(!isUpdated)
+            if (!isUpdated)
             {
                 await adminChannel.SendMessageAsync("Failed to save music channel to the database.");
                 return;
@@ -95,19 +93,17 @@ namespace Tiny_Bot.Commands
 
             GuildChannelUsageData data = await DatabaseManager.GetGuildChannelUsageData(guildId: ctx.Guild.Id, channel_usage_type: "music");
 
-            if(data.ChannelUsageType == null)
+            if (data.ChannelUsageType == null)
             {
                 await adminChannel.SendMessageAsync("Failed to retrieve music channel from the database.");
                 return;
             }
 
             DiscordChannel musicChannel = await ChannelFinder.GetChannelFor(channel_usage_type: "music", ctx);
-            if(musicChannel == null)
+            if (musicChannel == null)
                 await adminChannel.SendMessageAsync($"Failed to set {discordChannel.Mention} as music channel.");
             else
                 await adminChannel.SendMessageAsync($"Successfully set {discordChannel.Mention} as music channel.");
-
         }
-
     }
 }

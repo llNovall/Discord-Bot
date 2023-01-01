@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Tiny_Bot.Commands
+namespace Discord_Bot.Commands
 {
-    class CModuleTeamBuilder : BaseCommandModule
+    internal class CModuleTeamBuilder : BaseCommandModule
     {
         [Command("team")]
         [Description("Use this command to create teams. You can directly mention users or use their names.\nExample command would look like this: !team 2 user1 user2")]

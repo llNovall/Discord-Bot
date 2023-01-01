@@ -1,9 +1,7 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
-namespace Tiny_Bot.DataClasses
+namespace Discord_Bot.DataClasses
 {
     public class Ranked
     {
@@ -112,6 +110,4 @@ namespace Tiny_Bot.DataClasses
         [JsonProperty("ARAM")]
         public ARAM ARAM;
     }
-
-
 }

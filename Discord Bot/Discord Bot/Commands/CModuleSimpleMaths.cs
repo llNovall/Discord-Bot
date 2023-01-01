@@ -1,13 +1,13 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using Discord_Bot.Services;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using System.Linq;
 using System.Threading.Tasks;
-using Tiny_Bot.Services;
 
-namespace Tiny_Bot.Commands
+namespace Discord_Bot.Commands
 {
-    class CModuleSimpleMaths : BaseCommandModule
+    internal class CModuleSimpleMaths : BaseCommandModule
     {
         public DiscordEmbedBuilderHelper Embed;
 
@@ -16,7 +16,7 @@ namespace Tiny_Bot.Commands
         public async Task Sum(CommandContext ctx, params int[] numbers)
         {
             DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
-            if(numbers.Length > 0)
+            if (numbers.Length > 0)
             {
                 embed.AddField($"The sum of {string.Join(", ", numbers)} is...", $"```fix\n{numbers.Sum()}```");
             }
@@ -34,7 +34,7 @@ namespace Tiny_Bot.Commands
         {
             DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
 
-            if(numbers.Length > 0)
+            if (numbers.Length > 0)
             {
                 int result = numbers[0];
 
@@ -42,7 +42,6 @@ namespace Tiny_Bot.Commands
                     result -= numbers[i];
 
                 embed.AddField($"The difference of {string.Join(", ", numbers)} is...", $"```fix\n{result}```");
-
             }
             else
             {
@@ -57,7 +56,7 @@ namespace Tiny_Bot.Commands
         public async Task Multiply(CommandContext ctx, params int[] numbers)
         {
             DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
-            if(numbers.Length > 0)
+            if (numbers.Length > 0)
             {
                 int result = 1;
                 numbers.ToList().ForEach(c => result *= c);

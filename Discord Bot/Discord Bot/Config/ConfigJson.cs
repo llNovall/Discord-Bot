@@ -1,11 +1,8 @@
 ﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Tiny_Bot
+namespace Discord_Bot.Config
 {
-    class ConfigJson
+    internal class ConfigJson
     {
         [JsonProperty("Token")]
         public string Token { get; private set; }

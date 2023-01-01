@@ -1,25 +1,25 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using Discord_Bot.Services;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using System.Threading.Tasks;
 using Tiny_Bot.DataClasses;
-using Tiny_Bot.Services;
 
-namespace Tiny_Bot.Commands
+namespace Discord_Bot.Commands
 {
-    class CModuleLeagueOfLegends :BaseCommandModule
+    internal class CModuleLeagueOfLegends : BaseCommandModule
     {
         public WhatIsMyMMRService MMRService;
         public DiscordEmbedBuilderHelper Embed;
 
         [Command("arammmr")]
-        public async Task FindAramMMR(CommandContext ctx, string region,[RemainingText] string userName)
+        public async Task FindAramMMR(CommandContext ctx, string region, [RemainingText] string userName)
         {
-            if(!string.IsNullOrEmpty(region) && !string.IsNullOrEmpty(userName))
+            if (!string.IsNullOrEmpty(region) && !string.IsNullOrEmpty(userName))
             {
                 WhatISMyMMRData data = await MMRService.FindMMRFor(region, userName);
 
-                if(data != null)
+                if (data != null)
                 {
                     DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
 
@@ -28,9 +28,9 @@ namespace Tiny_Bot.Commands
                     embed.AddField($"Closest Rank", $"{data.ARAM.ClosestRank}");
                     embed.WithFooter($"Powered by whatismymmr.com");
 
-
                     await ctx.RespondAsync(embed);
-                }else
+                }
+                else
 
                 {
                     DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);

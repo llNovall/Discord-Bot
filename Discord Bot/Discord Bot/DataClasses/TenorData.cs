@@ -1,9 +1,9 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace Tiny_Bot.DataClasses
+namespace Discord_Bot.DataClasses
 {
-  public class Webm
+    public class Webm
     {
         [JsonConstructor]
         public Webm(
@@ -508,7 +508,4 @@ namespace Tiny_Bot.DataClasses
         [JsonProperty("next")]
         public readonly string Next;
     }
-
-
-
 }

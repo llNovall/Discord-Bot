@@ -1,15 +1,13 @@
-﻿using System;
+﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Tiny_Bot.DataClasses;
+using Discord_Bot.DataClasses;
 
-namespace Tiny_Bot.Services
+namespace Discord_Bot.Services
 {
-    class WhatIsMyMMRService
+    internal class WhatIsMyMMRService
     {
         private List<string> _allowedRegions;
 

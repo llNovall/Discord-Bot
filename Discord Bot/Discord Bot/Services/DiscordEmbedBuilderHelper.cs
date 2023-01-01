@@ -1,11 +1,7 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using DSharpPlus.Net;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Tiny_Bot.Services
+namespace Discord_Bot.Services
 {
     public class DiscordEmbedBuilderHelper
     {
@@ -29,6 +25,7 @@ namespace Tiny_Bot.Services
                     IconUrl = discordClient.CurrentUser.AvatarUrl,
                 }
             };
+
         public DiscordEmbedBuilder BuildEmbedContent(string title, string description, DiscordUser user = null)
         {
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder(_defaultEmbed)
