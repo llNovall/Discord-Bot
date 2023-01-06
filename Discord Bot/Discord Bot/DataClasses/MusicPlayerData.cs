@@ -12,7 +12,7 @@ namespace Discord_Bot.DataClasses
         {
             Play,
             Pause,
-            Stop
+            Stop,
         }
 
         private int _currentTrackIndex;
@@ -37,6 +37,7 @@ namespace Discord_Bot.DataClasses
         {
             _playlist = new List<TrackData>();
             _currentTrackIndex = -1;
+            _currentMusicPlayerState = MusicPlayerState.Stop;
         }
 
         public void AddTracksToPlaylist(IEnumerable<LavalinkTrack> tracks, string discordMemberName)

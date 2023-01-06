@@ -63,6 +63,7 @@ namespace Discord_Bot
                                                               .AddSingleton<WhatIsMyMMRService>()
                                                               .AddSingleton<DatabaseManager>()
                                                               .AddSingleton<ChannelFinder>()
+                                                              .AddSingleton<SpotifyService>()
                                                               .BuildServiceProvider();
 
             CommandsNextConfiguration commandsNextConfiguration = new CommandsNextConfiguration()

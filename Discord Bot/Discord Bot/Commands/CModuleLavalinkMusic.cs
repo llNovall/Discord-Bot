@@ -8,6 +8,7 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -20,6 +21,7 @@ namespace Discord_Bot.Commands
         public LavalinkMusicService LavalinkMusicService;
         public DiscordEmbedBuilderHelper EmbedHelper;
         public ChannelFinder ChannelFinder;
+        public SpotifyService SpotifyService;
 
         private enum MessageStatus
         {
@@ -281,6 +283,7 @@ namespace Discord_Bot.Commands
             }
 
             await musicPlayerData.LavalinkGuildConnection.PlayAsync(lavalinkTrack);
+            musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
         }
 
         [Command("leave")]
@@ -398,6 +401,45 @@ namespace Discord_Bot.Commands
             }
         }
 
+        [Command("queuesp")]
+        public async Task QueueSongSpotifyAsync(CommandContext ctx, [RemainingText] Uri search)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            List<string> trackNames = await SpotifyService.GetTrackNames(search);
+
+            foreach (string trackName in trackNames)
+            {
+                LavalinkLoadResult loadResult = await musicPlayerData.LavalinkGuildConnection.GetTracksAsync(trackName, LavalinkSearchType.Youtube);
+                if (loadResult.LoadResultType != LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
+                {
+                    LavalinkTrack foundTrack = loadResult.Tracks.FirstOrDefault();
+                    if (foundTrack == null)
+                        continue;
+
+                    musicPlayerData.AddATrackToPlaylist(foundTrack, ctx.Member.DisplayName);
+
+                    if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Stop)
+                    {
+                        LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
+                        await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
+                        await musicPlayerData.LavalinkGuildConnection.ResumeAsync();
+
+                        musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
+                    }
+                }
+            }
+        }
+
         [Command("queuepl")]
         public async Task QueuePlaylistAsync(CommandContext ctx, [RemainingText] Uri search)
         {
@@ -489,8 +531,8 @@ namespace Discord_Bot.Commands
 
             if (musicPlayerData == null || musicChannel == null) return;
 
-            LavalinkTrack lavalinkTrack = musicPlayerData.GetNextTrack().Track;
-            await musicPlayerData.LavalinkGuildConnection.PlayAsync(lavalinkTrack);
+            musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Stop;
+            await musicPlayerData.LavalinkGuildConnection.StopAsync();
         }
 
         [Command("clear")]
@@ -566,7 +608,7 @@ namespace Discord_Bot.Commands
                 .WithColor(DiscordColor.Rose)
                 .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl);
 
-            var pages = interactivity.GeneratePagesInEmbed(content, splittype: DSharpPlus.Interactivity.Enums.SplitType.Character, embedbase: embed);
+            var pages = interactivity.GeneratePagesInEmbed(string.IsNullOrEmpty(content) ? "Playlist is empty.." : content, splittype: DSharpPlus.Interactivity.Enums.SplitType.Character, embedbase: embed);
 
             await musicChannel.SendPaginatedMessageAsync(ctx.Member, pages);
         }
