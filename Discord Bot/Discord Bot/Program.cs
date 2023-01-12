@@ -44,7 +44,7 @@ namespace Discord_Bot
             DiscordConfiguration discordConfiguration = new DiscordConfiguration()
             {
                 AutoReconnect = true,
-                Intents = DiscordIntents.AllUnprivileged,
+                Intents = DiscordIntents.All,
                 Token = configJson.Token,
                 TokenType = TokenType.Bot,
                 MinimumLogLevel = LogLevel.Debug
@@ -64,6 +64,8 @@ namespace Discord_Bot
                                                               .AddSingleton<DatabaseManager>()
                                                               .AddSingleton<ChannelFinder>()
                                                               .AddSingleton<SpotifyService>()
+                                                              .AddSingleton<DiscordClient>(DiscordClient)
+                                                              .AddSingleton<RolesFinder>()
                                                               .BuildServiceProvider();
 
             CommandsNextConfiguration commandsNextConfiguration = new CommandsNextConfiguration()
@@ -79,6 +81,7 @@ namespace Discord_Bot
             };
 
             Commands = DiscordClient.UseCommandsNext(commandsNextConfiguration);
+
             Commands.RegisterCommands<CModuleGreet>();
             Commands.RegisterCommands<CModuleSimpleMaths>();
             Commands.RegisterCommands<CModuleLavalinkMusic>();
@@ -87,7 +90,6 @@ namespace Discord_Bot
             Commands.RegisterCommands<CModuleLeagueOfLegends>();
             Commands.RegisterCommands<CModuleLavalinkPlayer>();
             //Commands.RegisterCommands<CModuleTest>();
-
             Commands.CommandExecuted += Commands_CommandExecuted;
             Commands.CommandErrored += Commands_CommandErrored;
 
