@@ -1,4 +1,4 @@
-﻿using Discord_Bot.DataClasses;
+﻿using Discord_Bot.Services.DataClasses;
 using DSharpPlus.Entities;
 using DSharpPlus.Lavalink;
 using System.Collections.Generic;

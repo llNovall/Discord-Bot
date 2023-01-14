@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Discord_Bot.DataClasses
+namespace Discord_Bot.Services.DataClasses
 {
     public class MusicPlayerData
     {

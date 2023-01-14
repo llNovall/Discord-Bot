@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace Discord_Bot.DataClasses
+namespace Discord_Bot.Services.DataClasses
 {
     public class Webm
     {
@@ -13,10 +13,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("url")] string url
         )
         {
-            this.Preview = preview;
-            this.Size = size;
-            this.Dims = dims;
-            this.Url = url;
+            Preview = preview;
+            Size = size;
+            Dims = dims;
+            Url = url;
         }
 
         [JsonProperty("preview")]
@@ -42,10 +42,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("size")] int size
         )
         {
-            this.Preview = preview;
-            this.Dims = dims;
-            this.Url = url;
-            this.Size = size;
+            Preview = preview;
+            Dims = dims;
+            Url = url;
+            Size = size;
         }
 
         [JsonProperty("preview")]
@@ -71,10 +71,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("preview")] string preview
         )
         {
-            this.Dims = dims;
-            this.Url = url;
-            this.Size = size;
-            this.Preview = preview;
+            Dims = dims;
+            Url = url;
+            Size = size;
+            Preview = preview;
         }
 
         [JsonProperty("dims")]
@@ -100,10 +100,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("dims")] List<int> dims
         )
         {
-            this.Size = size;
-            this.Preview = preview;
-            this.Url = url;
-            this.Dims = dims;
+            Size = size;
+            Preview = preview;
+            Url = url;
+            Dims = dims;
         }
 
         [JsonProperty("size")]
@@ -129,10 +129,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("dims")] List<int> dims
         )
         {
-            this.Size = size;
-            this.Preview = preview;
-            this.Url = url;
-            this.Dims = dims;
+            Size = size;
+            Preview = preview;
+            Url = url;
+            Dims = dims;
         }
 
         [JsonProperty("size")]
@@ -158,10 +158,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("url")] string url
         )
         {
-            this.Preview = preview;
-            this.Size = size;
-            this.Dims = dims;
-            this.Url = url;
+            Preview = preview;
+            Size = size;
+            Dims = dims;
+            Url = url;
         }
 
         [JsonProperty("preview")]
@@ -188,11 +188,11 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("size")] int size
         )
         {
-            this.Preview = preview;
-            this.Dims = dims;
-            this.Url = url;
-            this.Duration = duration;
-            this.Size = size;
+            Preview = preview;
+            Dims = dims;
+            Url = url;
+            Duration = duration;
+            Size = size;
         }
 
         [JsonProperty("preview")]
@@ -222,11 +222,11 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("preview")] string preview
         )
         {
-            this.Size = size;
-            this.Dims = dims;
-            this.Duration = duration;
-            this.Url = url;
-            this.Preview = preview;
+            Size = size;
+            Dims = dims;
+            Duration = duration;
+            Url = url;
+            Preview = preview;
         }
 
         [JsonProperty("size")]
@@ -255,10 +255,10 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("dims")] List<int> dims
         )
         {
-            this.Preview = preview;
-            this.Url = url;
-            this.Size = size;
-            this.Dims = dims;
+            Preview = preview;
+            Url = url;
+            Size = size;
+            Dims = dims;
         }
 
         [JsonProperty("preview")]
@@ -285,11 +285,11 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("dims")] List<int> dims
         )
         {
-            this.Size = size;
-            this.Url = url;
-            this.Duration = duration;
-            this.Preview = preview;
-            this.Dims = dims;
+            Size = size;
+            Url = url;
+            Duration = duration;
+            Preview = preview;
+            Dims = dims;
         }
 
         [JsonProperty("size")]
@@ -319,11 +319,11 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("dims")] List<int> dims
         )
         {
-            this.Duration = duration;
-            this.Preview = preview;
-            this.Url = url;
-            this.Size = size;
-            this.Dims = dims;
+            Duration = duration;
+            Preview = preview;
+            Url = url;
+            Size = size;
+            Dims = dims;
         }
 
         [JsonProperty("duration")]
@@ -359,17 +359,17 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("loopedmp4")] Loopedmp4 loopedmp4
         )
         {
-            this.Webm = webm;
-            this.Gif = gif;
-            this.Nanogif = nanogif;
-            this.Tinygif = tinygif;
-            this.Tinywebm = tinywebm;
-            this.Mediumgif = mediumgif;
-            this.Tinymp4 = tinymp4;
-            this.Mp4 = mp4;
-            this.Nanowebm = nanowebm;
-            this.Nanomp4 = nanomp4;
-            this.Loopedmp4 = loopedmp4;
+            Webm = webm;
+            Gif = gif;
+            Nanogif = nanogif;
+            Tinygif = tinygif;
+            Tinywebm = tinywebm;
+            Mediumgif = mediumgif;
+            Tinymp4 = tinymp4;
+            Mp4 = mp4;
+            Nanowebm = nanowebm;
+            Nanomp4 = nanomp4;
+            Loopedmp4 = loopedmp4;
         }
 
         [JsonProperty("webm")]
@@ -427,21 +427,21 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("composite")] object composite
         )
         {
-            this.Id = id;
-            this.Title = title;
-            this.H1Title = h1Title;
-            this.Media = media;
-            this.BgColor = bgColor;
-            this.Created = created;
-            this.Itemurl = itemurl;
-            this.Url = url;
-            this.Tags = tags;
-            this.Flags = flags;
-            this.Shares = shares;
-            this.Hasaudio = hasaudio;
-            this.Hascaption = hascaption;
-            this.SourceId = sourceId;
-            this.Composite = composite;
+            Id = id;
+            Title = title;
+            H1Title = h1Title;
+            Media = media;
+            BgColor = bgColor;
+            Created = created;
+            Itemurl = itemurl;
+            Url = url;
+            Tags = tags;
+            Flags = flags;
+            Shares = shares;
+            Hasaudio = hasaudio;
+            Hascaption = hascaption;
+            SourceId = sourceId;
+            Composite = composite;
         }
 
         [JsonProperty("id")]
@@ -498,8 +498,8 @@ namespace Discord_Bot.DataClasses
             [JsonProperty("next")] string next
         )
         {
-            this.Results = results;
-            this.Next = next;
+            Results = results;
+            Next = next;
         }
 
         [JsonProperty("results")]

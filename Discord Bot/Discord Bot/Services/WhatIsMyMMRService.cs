@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
-using Discord_Bot.DataClasses;
+using Discord_Bot.Services.DataClasses;
 
 namespace Discord_Bot.Services
 {

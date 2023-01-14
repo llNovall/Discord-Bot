@@ -1,6 +1,6 @@
 ﻿using DSharpPlus.Lavalink;
 
-namespace Discord_Bot.DataClasses
+namespace Discord_Bot.Services.DataClasses
 {
     public class TrackData
     {
