@@ -33,12 +33,17 @@
     <PackageReference Include="Kuylar.DSharpPlus.ButtonCommands" Version="1.3.1" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.13" />
+    <PackageReference Include="PostSharp" Version="2023.0.3" />
+    <PackageReference Include="PostSharp.Patterns.Aggregation" Version="2023.0.3" />
+    <PackageReference Include="PostSharp.Patterns.Common" Version="2023.0.3" />
+    <PackageReference Include="PostSharp.Patterns.Diagnostics" Version="2023.0.3" />
     <PackageReference Include="SpotifyAPI.Web" Version="7.0.0" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Commands\DataClasses\" />
     <Folder Include="Commands\Enumerators\" />
     <Folder Include="Services\Enumerators\" />
   </ItemGroup>
