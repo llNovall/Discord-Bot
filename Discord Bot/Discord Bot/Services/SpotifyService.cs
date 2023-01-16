@@ -13,8 +13,8 @@ namespace Discord_Bot.Services
     internal class SpotifyService
     {
         private SpotifyClientConfig _defaultConfig = SpotifyClientConfig.CreateDefault();
-        private string _id;
-        private string _secret;
+        private readonly string _id;
+        private readonly string _secret;
         private string _apiKey;
 
         public SpotifyService()
@@ -74,7 +74,7 @@ namespace Discord_Bot.Services
 
         public async Task<List<string>> GetTrackNames(Uri playlistUri)
         {
-            string pattern = @"open\.spotify\.com/playlist/(?<id>.*)";
+            const string pattern = @"open\.spotify\.com/playlist/(?<id>[\da-zA-Z]*)";
             Regex rg = new Regex(pattern);
             Match match = rg.Match(playlistUri.ToString());
             string playlistID = match.Groups["id"].Value;
@@ -99,6 +99,26 @@ namespace Discord_Bot.Services
             }
 
             return trackNames;
+        }
+
+        public async Task<string> GetTrackName(Uri trackUri)
+        {
+            const string pattern = @"open\.spotify\.com\/track\/(?<id>[\da-zA-Z]*)";
+            Regex rg = new Regex(pattern);
+            Match match = rg.Match(trackUri.ToString());
+            string trackID = match.Groups["id"].Value;
+
+            if (string.IsNullOrEmpty(trackID))
+                return string.Empty;
+
+            _apiKey = await GetAccessToken();
+
+            SpotifyClientConfig config = _defaultConfig.WithToken(_apiKey);
+            SpotifyClient spotify = new SpotifyClient(config);
+
+            var track = await spotify.Tracks.Get(trackID);
+
+            return track.Name;
         }
     }
 }
