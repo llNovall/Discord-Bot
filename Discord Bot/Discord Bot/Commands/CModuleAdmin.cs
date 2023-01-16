@@ -1,67 +1,89 @@
-﻿using Discord_Bot.Database;
-using Discord_Bot.Services;
+﻿using Discord_Bot.Services;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using DSharpPlus.Interactivity.Extensions;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Discord_Bot.Commands
 {
+    [RequireUserPermissions(Permissions.Administrator)]
     internal class CModuleAdmin : BaseCommandModule
     {
-        public DatabaseManager DatabaseManager;
-        public ChannelFinder ChannelFinder;
+        public GuildManager GuildManager;
         public DiscordClient DiscordClient;
-        public RolesFinder RolesFinder;
-        //[Command("prefix")]
-        //public async Task ChangePrefix(CommandContext ctx, char prefix)
-        //{
-        //    CommandsNextExtension extension = ctx.Client.GetCommandsNext();
-        //    extension.Client.
-        //}
+        public Helper Helper;
 
         public CModuleAdmin()
         {
-            Initialize().GetAwaiter();
+            InitializeAsync().GetAwaiter();
         }
 
-        private async Task Initialize()
+        private async Task InitializeAsync()
         {
             await Task.Run(() => { while (DiscordClient == null) { } });
 
-            DiscordClient.ComponentInteractionCreated += Rules_ComponentInteractionCreated;
+            DiscordClient.ComponentInteractionCreated += ComponentInteractionCreated;
         }
 
-        private async Task Rules_ComponentInteractionCreated(DiscordClient sender, ComponentInteractionCreateEventArgs e)
+        private async Task ComponentInteractionCreated(DiscordClient sender, ComponentInteractionCreateEventArgs e)
         {
             if (e.Id == "rules")
             {
                 e.Handled = true;
                 await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
 
-                DiscordMember discordMember = await e.Interaction.Guild.GetMemberAsync(e.Interaction.User.Id);
+                var discordMember = await e.Interaction.Guild.GetMemberAsync(e.Interaction.User.Id);
 
                 if (discordMember == null)
                     return;
 
-                DiscordRole roleToAssign = await RolesFinder.GetRoleIDForRules(e.Guild);
+                var roleToAssign = GuildManager.GetRoleFor(e.Guild, "rules");
 
                 if (roleToAssign == null)
                     return;
+                try
+                {
+                    await discordMember.GrantRoleAsync(roleToAssign);
+                }
+                catch (Exception ex)
+                {
+                    var adminChannel = GuildManager.GetChannelFor("admin", e.Guild);
 
-                await discordMember.GrantRoleAsync(roleToAssign);
+                    if (adminChannel != null)
+                        await adminChannel.SendMessageAsync($"Attempted to give role {roleToAssign.Name} to {discordMember.Mention} but failed.\nReason : {ex.Message}");
+                }
             }
         }
 
-        [Command("ping")]
-        public async Task Ping(CommandContext ctx)
+        [Command("setch")]
+        public async Task SetChannelForAsync(CommandContext ctx, DiscordChannel channel, string channelUsage)
         {
-            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+            var adminChannel = GuildManager.GetChannelFor("admin", ctx);
+
+            if (adminChannel == null)
+            {
+                await ctx.Channel.SendMessageAsync("Failed to find admin channel.");
+                return;
+            }
+
+            if (channel == null || string.IsNullOrEmpty(channelUsage))
+                return;
+
+            var isSuccess = await GuildManager.UpdateChannelUsageForChannel(ctx.Guild, channel, channelUsage);
+
+            if (!isSuccess)
+                await adminChannel.SendMessageAsync("Failed to save to database.");
+
+            await adminChannel.SendMessageAsync($"{channel.Mention} set as channel for {channelUsage}.");
+        }
+
+        [Command("ping")]
+        public async Task PingAsync(CommandContext ctx)
+        {
+            DiscordEmbedBuilder embed = new()
             {
                 Title = $"Ping : {ctx.Client.Ping}",
                 Color = DiscordColor.Green
@@ -70,11 +92,11 @@ namespace Discord_Bot.Commands
             await ctx.RespondAsync(embed);
         }
 
-        [Command("setadminchannel"), RequirePermissions(DSharpPlus.Permissions.Administrator)]
-        public async Task SetAdminChannel(CommandContext ctx, DiscordChannel discordChannel)
+        [Command("setadminchannel")]
+        public async Task SetAdminChannelAsync(CommandContext ctx, DiscordChannel discordChannel)
         {
-            DiscordChannel adminChannel = await ChannelFinder.GetChannelFor("admin", ctx);
-            DiscordChannel channelToSendMessage = adminChannel != null ? adminChannel : ctx.Channel;
+            DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
+            DiscordChannel channelToSendMessage = adminChannel ?? ctx.Channel;
 
             if (discordChannel == null)
             {
@@ -82,7 +104,7 @@ namespace Discord_Bot.Commands
                 return;
             }
 
-            bool isUpdated = await DatabaseManager.UpdateChannelUsageForChannel(guildId: ctx.Guild.Id, channelId: discordChannel.Id, channel_usage_type: "admin");
+            bool isUpdated = await GuildManager.UpdateChannelUsageForChannel(ctx.Guild, discordChannel, "admin");
 
             if (!isUpdated)
             {
@@ -90,25 +112,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
-            adminChannel = await ChannelFinder.GetChannelFor("admin", ctx);
-
-            if (adminChannel == null)
-            {
-                await channelToSendMessage.SendMessageAsync("Failed to retrieve admin channel from the database.");
-                return;
-            }
+            adminChannel = GuildManager.GetChannelFor("admin", ctx);
 
             channelToSendMessage = adminChannel;
             await channelToSendMessage.SendMessageAsync($"Successfully set {channelToSendMessage.Mention} as admin channel.");
         }
 
-        [Command("setmusicchannel"), RequireUserPermissions(DSharpPlus.Permissions.Administrator)]
-        public async Task SetMusicChannel(CommandContext ctx, DiscordChannel discordChannel)
+        [Command("setmusicchannel")]
+        public async Task SetMusicChannelAsync(CommandContext ctx, DiscordChannel discordChannel)
         {
-            if (discordChannel == null)
-                return;
-
-            DiscordChannel adminChannel = await ChannelFinder.GetChannelFor("admin", ctx);
+            DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
 
             if (adminChannel == null)
             {
@@ -122,7 +135,7 @@ namespace Discord_Bot.Commands
                 return;
             }
 
-            bool isUpdated = await DatabaseManager.UpdateChannelUsageForChannel(guildId: ctx.Guild.Id, channelId: discordChannel.Id, channel_usage_type: "music");
+            bool isUpdated = await GuildManager.UpdateChannelUsageForChannel(ctx.Guild, discordChannel, "music");
 
             if (!isUpdated)
             {
@@ -130,47 +143,39 @@ namespace Discord_Bot.Commands
                 return;
             }
 
-            GuildChannelUsageData data = await DatabaseManager.GetGuildChannelUsageData(guildId: ctx.Guild.Id, channel_usage_type: "music");
-
-            if (data.ChannelUsageType == null)
-            {
-                await adminChannel.SendMessageAsync("Failed to retrieve music channel from the database.");
-                return;
-            }
-
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor(channel_usage_type: "music", ctx);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor(channel_usage_type: "music", ctx);
             if (musicChannel == null)
                 await adminChannel.SendMessageAsync($"Failed to set {discordChannel.Mention} as music channel.");
             else
                 await adminChannel.SendMessageAsync($"Successfully set {discordChannel.Mention} as music channel.");
         }
 
-        [Command("rules"), RequireUserPermissions(Permissions.Administrator)]
+        [Command("rules")]
         public async Task PostRulesAsync(CommandContext ctx, DiscordRole roleToAssign, DiscordEmoji reactionEmoji, DiscordChannel rulesChannel, string title, string image_uri, [RemainingText] string rulesText)
         {
-            DiscordChannel adminChannel = await ChannelFinder.GetChannelFor("admin", ctx);
+            DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
 
             if (adminChannel == null)
             {
-                await ctx.Channel.SendMessageAsync("Failed to find admin channel.");
+                await Helper.SendMessageToChannelAsync(DiscordClient, ctx.Channel, Helper.MessageSeverity.Negative, "Failed to find admin channel.");
                 return;
             }
 
             if (rulesChannel == null || roleToAssign == null || reactionEmoji == null || string.IsNullOrEmpty(rulesText) || string.IsNullOrEmpty(title))
                 return;
 
-            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+            var embed = new DiscordEmbedBuilder()
                 .WithTitle(title)
                 .WithDescription(rulesText)
                 .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl)
                 .WithColor(DiscordColor.Red)
                 .WithImageUrl(image_uri);
 
-            DiscordMessageBuilder messageBuilder = new DiscordMessageBuilder()
+            var messageBuilder = new DiscordMessageBuilder()
                 .WithEmbed(embed)
                 .AddComponents(new DiscordButtonComponent(DSharpPlus.ButtonStyle.Success, "rules", "Accept", emoji: new DiscordComponentEmoji(reactionEmoji)));
 
-            bool isSuccess = await DatabaseManager.UpdateRoleForGuildRules(ctx.Guild.Id, roleToAssign.Id);
+            bool isSuccess = await GuildManager.UpdateRoleFor(ctx.Guild, roleToAssign, "rules");
 
             if (!isSuccess)
             {
