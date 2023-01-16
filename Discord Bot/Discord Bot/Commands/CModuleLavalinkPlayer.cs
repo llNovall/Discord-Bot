@@ -1,5 +1,5 @@
-﻿using Discord_Bot.Services.DataClasses;
-using Discord_Bot.Services;
+﻿using Discord_Bot.Services;
+using Discord_Bot.Services.DataClasses;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;

@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using Discord_Bot.Services.DataClasses;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
-using Discord_Bot.Services.DataClasses;
 
 namespace Discord_Bot.Services
 {
