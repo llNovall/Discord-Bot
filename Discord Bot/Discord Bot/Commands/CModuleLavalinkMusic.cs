@@ -20,7 +20,7 @@ namespace Discord_Bot.Commands
     {
         public LavalinkMusicService LavalinkMusicService;
         public DiscordEmbedBuilderHelper EmbedHelper;
-        public ChannelFinder ChannelFinder;
+        public GuildManager GuildManager;
         public SpotifyService SpotifyService;
 
         private enum MessageStatus
@@ -166,7 +166,7 @@ namespace Discord_Bot.Commands
 
         private async Task<(MusicPlayerData, DiscordChannel)> GetMusicPlayerDataAndMusicChannel(DiscordClient discordClient, DiscordGuild discordGuild, DiscordChannel altChannelToSendMessage, DiscordMember discordMember)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", discordGuild);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", discordGuild);
 
             if (musicChannel == null)
             {
@@ -196,7 +196,7 @@ namespace Discord_Bot.Commands
         [Command("join")]
         public async Task JoinChannelAsync(CommandContext ctx)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", ctx);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", ctx);
 
             if (musicChannel == null)
             {
@@ -238,7 +238,7 @@ namespace Discord_Bot.Commands
 
             guildConnection.PlaybackStarted += GuildConnection_PlaybackStarted;
             guildConnection.PlaybackFinished += GuildConnection_PlaybackFinished;
-            guildConnection.PlayerUpdated += GuildConnection_PlayerUpdated;
+            //guildConnection.PlayerUpdated += GuildConnection_PlayerUpdated;
 
             await SendMessageToChannel(
                         discordClient: ctx.Client,
@@ -247,19 +247,20 @@ namespace Discord_Bot.Commands
                         messageSeverity: MessageSeverity.Positive);
         }
 
-        private async Task GuildConnection_PlayerUpdated(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs e)
+        private void GuildConnection_PlayerUpdated(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs e)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", sender.Guild);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", sender.Guild);
             //e.Handled = true;
             //await musicChannel.SendMessageAsync("PLAYBACK UPDATED");
         }
 
         private async Task GuildConnection_PlaybackStarted(LavalinkGuildConnection sender, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs e)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", sender.Guild);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", sender.Guild);
             MusicPlayerData musicPlayerData = LavalinkMusicService.GetMusicPlayerData(sender.Guild.Id);
 
             TrackData trackData = musicPlayerData.GetCurrentTrack();
+
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
                 .WithTitle("Now Playing")
                 .WithDescription($"{trackData.Track.Title} (Added By {trackData.DiscordMemberName})")
@@ -275,12 +276,14 @@ namespace Discord_Bot.Commands
             if (musicPlayerData == null)
                 return;
 
-            LavalinkTrack lavalinkTrack = musicPlayerData.GetNextTrack().Track;
-            if (lavalinkTrack == null)
+            TrackData trackData = musicPlayerData.GetNextTrack();
+
+            if (trackData == null)
             {
                 musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Stop;
                 return;
             }
+            LavalinkTrack lavalinkTrack = trackData.Track;
 
             await musicPlayerData.LavalinkGuildConnection.PlayAsync(lavalinkTrack);
             musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
@@ -289,7 +292,7 @@ namespace Discord_Bot.Commands
         [Command("leave")]
         public async Task LeaveChannelAsync(CommandContext ctx)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", ctx);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", ctx);
 
             if (musicChannel == null)
             {
@@ -306,7 +309,7 @@ namespace Discord_Bot.Commands
             if (musicPlayerData.LavalinkGuildConnection != null)
             {
                 musicPlayerData.LavalinkGuildConnection.PlaybackFinished -= GuildConnection_PlaybackFinished;
-                musicPlayerData.LavalinkGuildConnection.PlayerUpdated -= GuildConnection_PlayerUpdated;
+                //musicPlayerData.LavalinkGuildConnection.PlayerUpdated -= GuildConnection_PlayerUpdated;
                 musicPlayerData.LavalinkGuildConnection.PlaybackStarted -= GuildConnection_PlaybackStarted;
 
                 await musicPlayerData.LavalinkGuildConnection.DisconnectAsync(shouldDestroy: true);
@@ -403,6 +406,45 @@ namespace Discord_Bot.Commands
 
         [Command("queuesp")]
         public async Task QueueSongSpotifyAsync(CommandContext ctx, [RemainingText] Uri search)
+        {
+            var result = await GetMusicPlayerDataAndMusicChannel(
+                discordClient: ctx.Client,
+                discordGuild: ctx.Guild,
+                altChannelToSendMessage: ctx.Channel,
+                discordMember: ctx.Member);
+
+            MusicPlayerData musicPlayerData = result.Item1;
+            DiscordChannel musicChannel = result.Item2;
+
+            if (musicPlayerData == null || musicChannel == null) return;
+
+            string trackName = await SpotifyService.GetTrackName(search);
+
+            if (string.IsNullOrEmpty(trackName))
+                return;
+
+            LavalinkLoadResult loadResult = await musicPlayerData.LavalinkGuildConnection.GetTracksAsync(trackName, LavalinkSearchType.Youtube);
+            if (loadResult.LoadResultType != LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
+            {
+                LavalinkTrack foundTrack = loadResult.Tracks.FirstOrDefault();
+                if (foundTrack == null)
+                    return;
+
+                musicPlayerData.AddATrackToPlaylist(foundTrack, ctx.Member.DisplayName);
+
+                if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Stop)
+                {
+                    LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
+                    await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
+                    await musicPlayerData.LavalinkGuildConnection.ResumeAsync();
+
+                    musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
+                }
+            }
+        }
+
+        [Command("queueplsp")]
+        public async Task QueuePlaylistSpotifyAsync(CommandContext ctx, [RemainingText] Uri search)
         {
             var result = await GetMusicPlayerDataAndMusicChannel(
                 discordClient: ctx.Client,

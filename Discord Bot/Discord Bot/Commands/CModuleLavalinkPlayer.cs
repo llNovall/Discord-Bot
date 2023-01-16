@@ -1,4 +1,4 @@
-﻿using Discord_Bot.DataClasses;
+﻿using Discord_Bot.Services.DataClasses;
 using Discord_Bot.Services;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
@@ -14,7 +14,7 @@ namespace Discord_Bot.Commands
     internal class CModuleLavalinkPlayer : BaseCommandModule
     {
         public LavalinkMusicService LavalinkMusicService;
-        public ChannelFinder ChannelFinder;
+        public GuildManager GuildManager;
 
         private enum ConnectionStatus
         {
@@ -73,7 +73,7 @@ namespace Discord_Bot.Commands
         [Command("setupmusic"), RequireUserPermissions(DSharpPlus.Permissions.Administrator)]
         public async Task SetupMusicChannel(CommandContext ctx)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", ctx);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", ctx);
 
             if (musicChannel == null) return;
 
@@ -203,8 +203,8 @@ namespace Discord_Bot.Commands
 
         public async Task LeaveChannel(DiscordClient discordClient, DiscordMember discordMember, DiscordGuild discordGuild)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", discordGuild);
-            DiscordChannel adminChannel = await ChannelFinder.GetChannelFor("admin", discordGuild);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", discordGuild);
+            DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", discordGuild);
 
             if (musicChannel == null)
             {
@@ -266,8 +266,8 @@ namespace Discord_Bot.Commands
 
         public async Task JoinChannel(DiscordClient discordClient, DiscordMember discordMember, DiscordGuild discordGuild)
         {
-            DiscordChannel musicChannel = await ChannelFinder.GetChannelFor("music", discordGuild);
-            DiscordChannel adminChannel = await ChannelFinder.GetChannelFor("admin", discordGuild);
+            DiscordChannel musicChannel = GuildManager.GetChannelFor("music", discordGuild);
+            DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", discordGuild);
 
             if (musicChannel == null)
             {
@@ -337,12 +337,12 @@ namespace Discord_Bot.Commands
             //await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, responseBuilder);
             if (e.Id == "music_join")
             {
-                DiscordMember discordMember = await Task.Run(() => e.Guild.Members.Where(c => c.Key == e.User.Id).Select(c => c.Value).First());
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
+
+                DiscordMember discordMember = await e.Interaction.Guild.GetMemberAsync(e.Interaction.User.Id);
 
                 if (discordMember != null)
-                    await Task.Run(() => JoinChannel(discordClient: sender, discordMember: discordMember, discordGuild: e.Guild));
-
-                await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, responseBuilder);
+                    await JoinChannel(discordClient: sender, discordMember: discordMember, discordGuild: e.Guild);
 
                 return;
             }
@@ -414,17 +414,19 @@ namespace Discord_Bot.Commands
 
         private async Task MusicPlayerModalSubmitted(DiscordClient sender, ModalSubmitEventArgs e)
         {
-            //if(e.Interaction.Data.CustomId == "music_modal_search")
-            //{
-            //  string url = e.Values["music_search_url"];
+            if (e.Interaction.Data.CustomId == "music_modal_search")
+            {
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
 
-            //DiscordMember discordMember = await Task<DiscordMember>.Run( async () => e.Interaction.Guild.Members.Where(c => c.Key == e.Interaction.User.Id).Select(c => c.Value).First());
+                string url = e.Values["music_search_url"];
 
-            //if (discordMember == null)
-            //  return;
+                DiscordMember discordMember = await Task.Run(() => e.Interaction.Guild.Members.Where(c => c.Key == e.Interaction.User.Id).Select(c => c.Value).First());
 
-            //await Task.Run( () => AddSongsToQueue(discordClient: sender, url: url, discordMemberName: discordMember.DisplayName, guildId: e.Interaction.Guild.Id));
-            //}
+                if (discordMember == null)
+                    return;
+
+                await Task.Run(() => AddSongsToQueue(discordClient: sender, url: url, discordMemberName: discordMember.DisplayName, guildId: e.Interaction.Guild.Id));
+            }
 
             await Task.Run(() => { });
         }
