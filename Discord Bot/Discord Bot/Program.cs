@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,11 +23,11 @@ namespace Discord_Bot
 {
     public class Program
     {
-        public readonly EventId BotID = new EventId(700, "Tsuki");
+        public readonly EventId BotId = new(700, "Tsuki");
         public DiscordClient DiscordClient { get; private set; }
         public CommandsNextExtension Commands { get; private set; }
 
-        private static void Main(string[] args)
+        private static void Main()
         {
             var prog = new Program();
             prog.MainAsync().GetAwaiter().GetResult();
@@ -34,14 +35,14 @@ namespace Discord_Bot
 
         public async Task MainAsync()
         {
-            string json = "";
-            using (FileStream fileStream = File.OpenRead("config.json"))
-            using (StreamReader streamReader = new StreamReader(fileStream, new UTF8Encoding(false)))
+            var json = "";
+            await using (var fileStream = File.OpenRead("config.json"))
+            using (var streamReader = new StreamReader(fileStream, new UTF8Encoding(false)))
                 json = await streamReader.ReadToEndAsync();
 
-            ConfigJson configJson = JsonConvert.DeserializeObject<ConfigJson>(json);
+            var configJson = JsonConvert.DeserializeObject<ConfigJson>(json);
 
-            DiscordConfiguration discordConfiguration = new DiscordConfiguration()
+            DiscordConfiguration discordConfiguration = new()
             {
                 AutoReconnect = true,
                 Intents = DiscordIntents.All,
@@ -56,19 +57,23 @@ namespace Discord_Bot
             DiscordClient.ClientErrored += Client_ClientError;
             DiscordClient.MessageCreated += DiscordClient_MessageCreated;
 
-            ServiceProvider services = new ServiceCollection().AddSingleton<Random>()
+            DatabaseManager databaseManager = new(DiscordClient.Logger);
+            GuildManager guildManager = new(databaseManager, DiscordClient.Logger);
+            Helper helper = new(guildManager);
+
+            var services = new ServiceCollection().AddSingleton<Random>()
                                                               .AddSingleton<LavalinkMusicService>()
                                                               .AddSingleton<DiscordEmbedBuilderHelper>()
                                                               .AddSingleton<GIFTenorService>()
                                                               .AddSingleton<WhatIsMyMMRService>()
-                                                              .AddSingleton<DatabaseManager>()
-                                                              .AddSingleton<ChannelFinder>()
+                                                              .AddSingleton<DatabaseManager>(databaseManager)
                                                               .AddSingleton<SpotifyService>()
                                                               .AddSingleton<DiscordClient>(DiscordClient)
-                                                              .AddSingleton<RolesFinder>()
+                                                              .AddSingleton<GuildManager>(guildManager)
+                                                              .AddSingleton<Helper>(helper)
                                                               .BuildServiceProvider();
 
-            CommandsNextConfiguration commandsNextConfiguration = new CommandsNextConfiguration()
+            CommandsNextConfiguration commandsNextConfiguration = new()
             {
                 EnableDms = false,
                 EnableMentionPrefix = true,
@@ -89,6 +94,8 @@ namespace Discord_Bot
             Commands.RegisterCommands<CModuleAdmin>();
             Commands.RegisterCommands<CModuleLeagueOfLegends>();
             Commands.RegisterCommands<CModuleLavalinkPlayer>();
+            Commands.RegisterCommands<CModuleLogger>();
+            Commands.RegisterCommands<CModuleMessageBuilder>();
             //Commands.RegisterCommands<CModuleTest>();
             Commands.CommandExecuted += Commands_CommandExecuted;
             Commands.CommandErrored += Commands_CommandErrored;
@@ -99,7 +106,7 @@ namespace Discord_Bot
             {
                 Timeout = TimeSpan.FromMinutes(2),
                 AckPaginationButtons = true,
-                ResponseBehavior = DSharpPlus.Interactivity.Enums.InteractionResponseBehavior.Respond,
+                ResponseBehavior = DSharpPlus.Interactivity.Enums.InteractionResponseBehavior.Ack,
                 ResponseMessage = "Failed Interaction or something"
             });
 
@@ -111,15 +118,18 @@ namespace Discord_Bot
 
         private Task DiscordClient_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
         {
-            sender.Logger.LogInformation(BotID, $"Channel : {e.Channel}\nMessage : {e.Message.Content}\nMessage Type : {e.Message.MessageType}");
+            sender.Logger.LogInformation(BotId, message: $"Channel : {e.Channel}\nMessage : {e.Message.Content}\nMessage Type : {e.Message.MessageType}");
 
             return Task.CompletedTask;
         }
 
-        private Task DiscordClient_Ready(DiscordClient sender, ReadyEventArgs e)
+        private async Task DiscordClient_Ready(DiscordClient sender, ReadyEventArgs e)
         {
-            sender.Logger.LogInformation(BotID, "Client is ready to process events.");
-            return Task.CompletedTask;
+            sender.Logger.LogInformation(BotId, "Client is ready to process events.");
+
+            var guildManager = (GuildManager)Commands.Services.GetService(typeof(GuildManager));
+            if (guildManager != null)
+                await guildManager.LoadGuildDataFromDatabase(DiscordClient.Guilds.Select(c => c.Value));
         }
 
         private async Task InitializeLavalink(DiscordClient discordClient)
@@ -148,22 +158,22 @@ namespace Discord_Bot
 
         private async Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
         {
-            await Task.Run(() => e.Context.Client.Logger.LogError(BotID, $"{e.Command} has issues.\nException : {e.Exception.Message}"));
+            await Task.Run(() => e.Context.Client.Logger.LogError(BotId, $"{e.Command} has issues.\nException : {e.Exception.Message}"));
         }
 
         private async Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
         {
-            await Task.Run(() => e.Context.Client.Logger.LogInformation(BotID, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'"));
+            await Task.Run(() => e.Context.Client.Logger.LogInformation(BotId, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'"));
         }
 
         private async Task Client_GuildAvailable(DiscordClient sender, GuildCreateEventArgs e)
         {
-            await Task.Run(() => sender.Logger.LogInformation(BotID, $"Guild available: {e.Guild.Name}"));
+            await Task.Run(() => sender.Logger.LogInformation(BotId, $"Guild available: {e.Guild.Name}"));
         }
 
         private async Task Client_ClientError(DiscordClient sender, ClientErrorEventArgs e)
         {
-            await Task.Run(() => sender.Logger.LogError(BotID, e.Exception.Message, "Exception occured"));
+            await Task.Run(() => sender.Logger.LogError(BotId, e.Exception.Message, "Exception occurred"));
         }
     }
 }
