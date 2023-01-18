@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 namespace Discord_Bot.Commands
 {
+    [RequireUserPermissions(Permissions.Administrator)]
     internal class CModuleLogger : BaseCommandModule
     {
         public GuildManager GuildManager;
@@ -48,6 +49,10 @@ namespace Discord_Bot.Commands
             //DiscordClient.GuildRoleUpdated += DiscordClient_GuildRoleUpdated;
             DiscordClient.InviteCreated += DiscordClient_InviteCreated;
             DiscordClient.InviteDeleted += DiscordClient_InviteDeleted;
+            DiscordClient.ChannelCreated += DiscordClient_ChannelCreated;
+            DiscordClient.ChannelDeleted += DiscordClient_ChannelDeleted;
+            DiscordClient.MessageDeleted += DiscordClient_MessageDeleted;
+            DiscordClient.MessageUpdated += DiscordClient_MessageUpdated;
             //DiscordClient.VoiceStateUpdated += DiscordClient_VoiceStateUpdated;
         }
 
@@ -128,7 +133,8 @@ namespace Discord_Bot.Commands
 
             DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Invite.Inviter, DiscordColor.Lilac);
 
-            embed.WithTitle("Invite Created");
+            embed.WithTitle("Invite Created")
+                .WithDescription($"{e.Invite.Inviter.Mention} created an invite with code {e.Invite.Code}.");
 
             await channel.SendMessageAsync(embed);
         }
@@ -179,7 +185,8 @@ namespace Discord_Bot.Commands
 
             DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Member, DiscordColor.Lilac);
 
-            embed.WithTitle("Member Left");
+            embed.WithTitle("Member Left")
+                .WithDescription($"{e.Member.Mention} has left {e.Guild.Name}.");
 
             await channel.SendMessageAsync(embed);
         }
@@ -196,7 +203,7 @@ namespace Discord_Bot.Commands
 
             DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Member, DiscordColor.Lilac);
 
-            embed.WithTitle("Member Joined");
+            embed.WithTitle("Member Joined").WithDescription($"{e.Member.Mention} has joined {e.Guild.Name}.");
 
             await channel.SendMessageAsync(embed);
         }
@@ -216,8 +223,11 @@ namespace Discord_Bot.Commands
                 DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Member, DiscordColor.Lilac);
 
                 embed.WithTitle("Nickname Changed")
-                    .AddField("Previous Nickname", e.NicknameBefore)
-                    .AddField("New Nickname", e.NicknameAfter);
+                    .WithDescription($"{e.Member.Mention}");
+                if (!string.IsNullOrWhiteSpace(e.NicknameBefore))
+                    embed.AddField("Previous Nickname", e.NicknameBefore);
+                if (!string.IsNullOrWhiteSpace(e.NicknameAfter))
+                    embed.AddField("New Nickname", e.NicknameAfter);
 
                 await channel.SendMessageAsync(embed);
             }
@@ -225,10 +235,10 @@ namespace Discord_Bot.Commands
             if (e.RolesBefore.Count != e.RolesAfter.Count)
             {
                 DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Member, DiscordColor.Lilac)
-                .WithTitle($"Roles Updated for {e.Member.Nickname}");
-
-                string[] rolesAdded = e.RolesAfter.Where(c => !e.RolesBefore.Contains(c)).Select(c => c.Name).ToArray();
-                string[] rolesRemoved = e.RolesBefore.Where(c => !e.RolesAfter.Contains(c)).Select(c => c.Name).ToArray();
+                .WithTitle($"Roles Updated")
+                .WithDescription($"{e.Member.Mention}");
+                string[] rolesAdded = e.RolesAfter.Where(c => !e.RolesBefore.Contains(c)).Select(c => c.Mention).ToArray();
+                string[] rolesRemoved = e.RolesBefore.Where(c => !e.RolesAfter.Contains(c)).Select(c => c.Mention).ToArray();
 
                 if (rolesAdded.Length > 0)
                     embed.AddField("Roles Added", string.Join("\n", rolesAdded));
@@ -237,6 +247,86 @@ namespace Discord_Bot.Commands
 
                 await channel.SendMessageAsync(embed);
             }
+        }
+
+        private async Task DiscordClient_MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
+        {
+            if (!IsLoggingEnabled(e.Guild.Id))
+                return;
+
+            DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
+
+            if (channel == null)
+                return;
+
+            if (e.MessageBefore == e.Message)
+                return;
+
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Message.Author, DiscordColor.Lilac);
+
+            embed.WithTitle("Message Updated")
+                .AddField("Author", $"{e.Message.Author.Mention}")
+                .AddField("Previous Message", $"{e.MessageBefore.Content}")
+                .AddField("Updated Message", $"{e.Message.Content}")
+                .AddField("Channel", $"{e.Channel.Mention}");
+
+            await channel.SendMessageAsync(embed);
+        }
+
+        private async Task DiscordClient_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
+        {
+            if (!IsLoggingEnabled(e.Guild.Id))
+                return;
+
+            DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
+
+            if (channel == null)
+                return;
+
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Message.Author, DiscordColor.Lilac);
+
+            embed.WithTitle("Message Deleted")
+                .AddField("Author", $"{e.Message.Author.Mention}")
+                .AddField("Deleted Message", $"{e.Message.Content}")
+                .AddField("Channel", $"{e.Channel.Mention}");
+
+            await channel.SendMessageAsync(embed);
+        }
+
+        private async Task DiscordClient_ChannelDeleted(DiscordClient sender, ChannelDeleteEventArgs e)
+        {
+            if (!IsLoggingEnabled(e.Guild.Id))
+                return;
+
+            DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
+
+            if (channel == null)
+                return;
+
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Guild.CurrentMember, DiscordColor.Lilac);
+
+            embed.WithTitle("Channel Deleted")
+                .WithDescription($"{e.Channel.Mention}");
+
+            await channel.SendMessageAsync(embed);
+        }
+
+        private async Task DiscordClient_ChannelCreated(DiscordClient sender, ChannelCreateEventArgs e)
+        {
+            if (!IsLoggingEnabled(e.Guild.Id))
+                return;
+
+            DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
+
+            if (channel == null)
+                return;
+
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Guild.CurrentMember, DiscordColor.Lilac);
+
+            embed.WithTitle("Channel Created")
+                .WithDescription($"{e.Channel.Mention}");
+
+            await channel.SendMessageAsync(embed);
         }
     }
 }

@@ -118,7 +118,7 @@ namespace Discord_Bot
 
         private Task DiscordClient_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
         {
-            sender.Logger.LogInformation(BotId, message: $"Channel : {e.Channel}\nMessage : {e.Message.Content}\nMessage Type : {e.Message.MessageType}");
+            sender.Logger.LogInformation(BotId, message: $"Sender : {e.Author.Username},\nChannel : {e.Channel.Name}\nMessage : {e.Message.Content}\nMessage Type : {e.Message.MessageType}");
 
             return Task.CompletedTask;
         }

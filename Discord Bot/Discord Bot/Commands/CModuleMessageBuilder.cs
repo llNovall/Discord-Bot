@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace Discord_Bot.Commands
 {
+    [RequireUserPermissions(Permissions.Administrator)]
     internal class CModuleMessageBuilder : BaseCommandModule
     {
         public GuildManager GuildManager;
@@ -124,7 +125,7 @@ namespace Discord_Bot.Commands
                 return;
 
             Dictionary<string, DiscordRole> rolesDict = GuildManager.GetRolesFor(ctx.Guild);
-            string content = rolesDict.Aggregate("", (current, role) => current + $"{role.Key} - {role.Value.Mention}");
+            string content = rolesDict.Aggregate("", (current, role) => current + $"{role.Key} - {role.Value.Mention}\n");
 
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
                 .WithTitle("Roles added with usage")
