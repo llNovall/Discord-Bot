@@ -56,6 +56,8 @@ namespace Discord_Bot
             DiscordClient.GuildAvailable += Client_GuildAvailable;
             DiscordClient.ClientErrored += Client_ClientError;
             DiscordClient.MessageCreated += DiscordClient_MessageCreated;
+            DiscordClient.SocketClosed += DiscordClient_SocketClosed;
+            DiscordClient.Zombied += DiscordClient_Zombied;
 
             DatabaseManager databaseManager = new(DiscordClient.Logger);
             GuildManager guildManager = new(databaseManager, DiscordClient.Logger);
@@ -114,6 +116,22 @@ namespace Discord_Bot
             await InitializeLavalink(DiscordClient);
 
             await Task.Delay(-1);
+        }
+
+        private Task DiscordClient_Zombied(DiscordClient sender, ZombiedEventArgs e)
+        {
+            sender.Logger.LogCritical(BotId, $"Failed heartbeat : {e.Failures}");
+            e.Handled = true;
+            sender.ReconnectAsync();
+            return Task.CompletedTask;
+        }
+
+        private Task DiscordClient_SocketClosed(DiscordClient sender, SocketCloseEventArgs e)
+        {
+            sender.Logger.LogCritical(BotId, $"Close Code : {e.CloseCode}, Message : {e.CloseMessage}");
+            e.Handled = true;
+            sender.ReconnectAsync();
+            return Task.CompletedTask;
         }
 
         private Task DiscordClient_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
