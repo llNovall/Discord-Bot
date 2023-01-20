@@ -106,6 +106,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_InviteDeleted(DiscordClient sender, InviteDeleteEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -123,6 +126,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_InviteCreated(DiscordClient sender, InviteCreateEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -141,6 +147,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_GuildRoleDeleted(DiscordClient sender, GuildRoleDeleteEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -158,6 +167,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_GuildRoleCreated(DiscordClient sender, GuildRoleCreateEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -175,6 +187,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_GuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -193,6 +208,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -210,6 +228,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -251,6 +272,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -275,6 +299,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -295,6 +322,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_ChannelDeleted(DiscordClient sender, ChannelDeleteEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
@@ -313,6 +343,9 @@ namespace Discord_Bot.Commands
 
         private async Task DiscordClient_ChannelCreated(DiscordClient sender, ChannelCreateEventArgs e)
         {
+            if (e.Guild == null)
+                return;
+
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
