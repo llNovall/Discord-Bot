@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Discord_Bot.Services
 {
-    internal class SpotifyService
+    public class SpotifyService
     {
         private SpotifyClientConfig _defaultConfig = SpotifyClientConfig.CreateDefault();
         private readonly string _id;
