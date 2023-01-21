@@ -6,6 +6,7 @@ using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DSharpPlus.SlashCommands;
 
 namespace Discord_Bot.Services
 {
@@ -25,6 +26,25 @@ namespace Discord_Bot.Services
         }
 
         #region Channel
+
+        public DiscordChannel GetChannelFor(string channel_usage_type, InteractionContext ctx)
+        {
+            if (string.IsNullOrEmpty(channel_usage_type))
+            {
+                _logger.LogError(_eventId, "Channel Usage Type is null or empty.");
+                return null;
+            }
+
+            if (!_guildData.ContainsKey(ctx.Guild.Id))
+            {
+                _logger.LogError(_eventId, $"Failed to find GuildData for guild {ctx.Guild.Name}");
+                return null;
+            }
+
+            GuildData data = _guildData[ctx.Guild.Id];
+
+            return !data.ChannelsDict.ContainsKey(channel_usage_type) ? null : ctx.Guild.GetChannel(data.ChannelsDict[channel_usage_type]);
+        }
 
         public DiscordChannel GetChannelFor(string channel_usage_type, CommandContext ctx)
         {
