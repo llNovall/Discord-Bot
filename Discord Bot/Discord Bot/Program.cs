@@ -18,6 +18,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DSharpPlus.SlashCommands;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Security.Policy;
+using Discord_Bot.SlashCommands;
 
 namespace Discord_Bot
 {
@@ -26,6 +30,8 @@ namespace Discord_Bot
         public readonly EventId BotId = new(700, "Tsuki");
         public DiscordClient DiscordClient { get; private set; }
         public CommandsNextExtension Commands { get; private set; }
+
+        public SlashCommandsExtension SlashCommands { get; private set; }
 
         private static void Main()
         {
@@ -62,14 +68,16 @@ namespace Discord_Bot
             DatabaseManager databaseManager = new(DiscordClient.Logger);
             GuildManager guildManager = new(databaseManager, DiscordClient.Logger);
             Helper helper = new(guildManager);
+            SpotifyService spotifyService = new();
+            LavalinkMusicService lavalinkMusicService = new(spotifyService, DiscordClient, guildManager);
 
             var services = new ServiceCollection().AddSingleton<Random>()
-                                                              .AddSingleton<LavalinkMusicService>()
+                                                              .AddSingleton<LavalinkMusicService>(lavalinkMusicService)
                                                               .AddSingleton<DiscordEmbedBuilderHelper>()
                                                               .AddSingleton<GIFTenorService>()
                                                               .AddSingleton<WhatIsMyMMRService>()
                                                               .AddSingleton<DatabaseManager>(databaseManager)
-                                                              .AddSingleton<SpotifyService>()
+                                                              .AddSingleton<SpotifyService>(spotifyService)
                                                               .AddSingleton<DiscordClient>(DiscordClient)
                                                               .AddSingleton<GuildManager>(guildManager)
                                                               .AddSingleton<Helper>(helper)
@@ -101,6 +109,18 @@ namespace Discord_Bot
             //Commands.RegisterCommands<CModuleTest>();
             Commands.CommandExecuted += Commands_CommandExecuted;
             Commands.CommandErrored += Commands_CommandErrored;
+
+            SlashCommandsConfiguration slashCommandsConfiguration = new()
+            {
+                Services = services
+            };
+
+            SlashCommands = DiscordClient.UseSlashCommands(slashCommandsConfiguration);
+            //SlashCommands.RegisterCommands<SModuleTest>();
+            SlashCommands.RegisterCommands<SModuleLavalinkMusic>();
+
+            SlashCommands.SlashCommandExecuted += SlashCommands_SlashCommandExecuted;
+            SlashCommands.SlashCommandErrored += SlashCommands_SlashCommandErrored;
 
             DiscordClient.UseVoiceNext();
 
@@ -176,12 +196,22 @@ namespace Discord_Bot
 
         private async Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
         {
-            await Task.Run(() => e.Context.Client.Logger.LogError(BotId, $"{e.Command} has issues.\nException : {e.Exception.Message}"));
+            await Task.Run(() => sender.Client.Logger.LogError(BotId, $"{e.Command} has issues.\nException : {e.Exception.Message}"));
         }
 
         private async Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
         {
-            await Task.Run(() => e.Context.Client.Logger.LogInformation(BotId, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'"));
+            await Task.Run(() => sender.Client.Logger.LogInformation(BotId, $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'"));
+        }
+
+        private async Task SlashCommands_SlashCommandErrored(SlashCommandsExtension sender, DSharpPlus.SlashCommands.EventArgs.SlashCommandErrorEventArgs e)
+        {
+            await Task.Run(() => sender.Client.Logger.LogError(BotId, $"{e.Context.QualifiedName} has issues.\nException : {e.Exception.Message}\nStackTrace : {e.Exception.StackTrace}"));
+        }
+
+        private async Task SlashCommands_SlashCommandExecuted(SlashCommandsExtension sender, DSharpPlus.SlashCommands.EventArgs.SlashCommandExecutedEventArgs e)
+        {
+            await Task.Run(() => sender.Client.Logger.LogInformation(BotId, $"{e.Context.User.Username} successfully executed '{e.Context.QualifiedName}'"));
         }
 
         private async Task Client_GuildAvailable(DiscordClient sender, GuildCreateEventArgs e)
