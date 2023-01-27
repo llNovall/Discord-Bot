@@ -3,10 +3,10 @@ using Discord_Bot.Services.DataClasses;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
+using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using DSharpPlus.SlashCommands;
 
 namespace Discord_Bot.Services
 {

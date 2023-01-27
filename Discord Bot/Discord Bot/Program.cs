@@ -2,6 +2,7 @@
 using Discord_Bot.Config;
 using Discord_Bot.Database;
 using Discord_Bot.Services;
+using Discord_Bot.SlashCommands;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.EventArgs;
@@ -9,6 +10,7 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
+using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,10 +20,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DSharpPlus.SlashCommands;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Security.Policy;
-using Discord_Bot.SlashCommands;
 
 namespace Discord_Bot
 {
