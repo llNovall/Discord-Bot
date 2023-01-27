@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Discord_Bot.Services
 {
-    internal class SpotifyService
+    public class SpotifyService
     {
         private SpotifyClientConfig _defaultConfig = SpotifyClientConfig.CreateDefault();
         private readonly string _id;
@@ -94,7 +94,7 @@ namespace Discord_Bot.Services
             {
                 if (item.Track is FullTrack track)
                 {
-                    trackNames.Add(track.Name + track.Album.Name);
+                    trackNames.Add(track.Name + " - " + track.Album.Name);
                 }
             }
 

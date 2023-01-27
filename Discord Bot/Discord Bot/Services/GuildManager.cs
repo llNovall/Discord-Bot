@@ -6,6 +6,7 @@ using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DSharpPlus.SlashCommands;
 
 namespace Discord_Bot.Services
 {
@@ -26,9 +27,20 @@ namespace Discord_Bot.Services
 
         #region Channel
 
-        public DiscordChannel GetChannelFor(string channel_usage_type, CommandContext ctx)
+        public Dictionary<string, ulong> GetChannelsForGuild(DiscordGuild discordGuild)
         {
-            if (string.IsNullOrEmpty(channel_usage_type))
+            if (!_guildData.ContainsKey(discordGuild.Id))
+            {
+                _logger.LogError(_eventId, $"Failed to find GuildData for guild {discordGuild.Name}");
+                return null;
+            }
+
+            return _guildData[discordGuild.Id].ChannelsDict;
+        }
+
+        public DiscordChannel GetChannelFor(string channelUsageType, InteractionContext ctx)
+        {
+            if (string.IsNullOrEmpty(channelUsageType))
             {
                 _logger.LogError(_eventId, "Channel Usage Type is null or empty.");
                 return null;
@@ -42,12 +54,31 @@ namespace Discord_Bot.Services
 
             GuildData data = _guildData[ctx.Guild.Id];
 
-            return !data.ChannelsDict.ContainsKey(channel_usage_type) ? null : ctx.Guild.GetChannel(data.ChannelsDict[channel_usage_type]);
+            return !data.ChannelsDict.ContainsKey(channelUsageType) ? null : ctx.Guild.GetChannel(data.ChannelsDict[channelUsageType]);
         }
 
-        public DiscordChannel GetChannelFor(string channel_usage_type, DiscordGuild discordGuild)
+        public DiscordChannel GetChannelFor(string channelUsageType, CommandContext ctx)
         {
-            if (string.IsNullOrEmpty(channel_usage_type))
+            if (string.IsNullOrEmpty(channelUsageType))
+            {
+                _logger.LogError(_eventId, "Channel Usage Type is null or empty.");
+                return null;
+            }
+
+            if (!_guildData.ContainsKey(ctx.Guild.Id))
+            {
+                _logger.LogError(_eventId, $"Failed to find GuildData for guild {ctx.Guild.Name}");
+                return null;
+            }
+
+            GuildData data = _guildData[ctx.Guild.Id];
+
+            return !data.ChannelsDict.ContainsKey(channelUsageType) ? null : ctx.Guild.GetChannel(data.ChannelsDict[channelUsageType]);
+        }
+
+        public DiscordChannel GetChannelFor(string channelUsageType, DiscordGuild discordGuild)
+        {
+            if (string.IsNullOrEmpty(channelUsageType))
             {
                 _logger.LogError(_eventId, "Channel Usage Type is null or empty.");
                 return null;
@@ -60,7 +91,7 @@ namespace Discord_Bot.Services
             }
 
             GuildData data = _guildData[discordGuild.Id];
-            return !data.ChannelsDict.ContainsKey(channel_usage_type) ? null : discordGuild.GetChannel(data.ChannelsDict[channel_usage_type]);
+            return !data.ChannelsDict.ContainsKey(channelUsageType) ? null : discordGuild.GetChannel(data.ChannelsDict[channelUsageType]);
         }
 
         public async Task<bool> UpdateChannelUsageForChannel(DiscordGuild discordGuild, DiscordChannel discordChannel, string channelUsage)
@@ -89,9 +120,9 @@ namespace Discord_Bot.Services
 
         #endregion Channel
 
-        #region Logger
+        #region ServiceStatus
 
-        public bool GetLoggerStatusForGuild(DiscordGuild discordGuild)
+        public bool GetStatusForServiceForGuild(DiscordGuild discordGuild, string serviceName)
         {
             if (!_guildData.ContainsKey(discordGuild.Id))
             {
@@ -101,10 +132,10 @@ namespace Discord_Bot.Services
 
             GuildData guildData = _guildData[discordGuild.Id];
 
-            return guildData.IsLoggerEnabled;
+            return guildData.ServiceStatusDict.ContainsKey(serviceName) ? guildData.ServiceStatusDict[serviceName] : false;
         }
 
-        public async Task<bool> UpdateLoggerStatusForGuild(DiscordGuild discordGuild, bool isEnabled)
+        public async Task<bool> UpdateStatusForServiceForGuild(DiscordGuild discordGuild, string serviceName, bool isEnabled)
         {
             if (!_guildData.ContainsKey(discordGuild.Id))
             {
@@ -114,12 +145,15 @@ namespace Discord_Bot.Services
 
             GuildData guildData = _guildData[discordGuild.Id];
 
-            guildData.IsLoggerEnabled = isEnabled;
+            if (guildData.ServiceStatusDict.ContainsKey(serviceName))
+                guildData.ServiceStatusDict[serviceName] = isEnabled;
+            else
+                guildData.ServiceStatusDict.Add(serviceName, isEnabled);
 
-            return await _databaseManager.UpdateLoggerStatusForGuild(discordGuild.Id, isEnabled);
+            return await _databaseManager.UpdateStatusForServiceForGuild(discordGuild.Id, serviceName, isEnabled);
         }
 
-        #endregion Logger
+        #endregion ServiceStatus
 
         #region Role
 
@@ -208,13 +242,11 @@ namespace Discord_Bot.Services
 
         public async Task<GuildData> GetGuildDataForGuildFromDatabase(DiscordGuild discordGuild)
         {
-            bool isLoggerEnabled = await _databaseManager.GetLoggerStatusForGuild(discordGuild.Id);
-
             GuildData guildData = new()
             {
-                IsLoggerEnabled = isLoggerEnabled,
                 ChannelsDict = await _databaseManager.GetChannelUsageDataForGuild(discordGuild.Id),
-                RolesDict = await _databaseManager.GetRolesForGuild(discordGuild.Id)
+                RolesDict = await _databaseManager.GetRolesForGuild(discordGuild.Id),
+                ServiceStatusDict = await _databaseManager.GetServiceStatusForGuild(discordGuild.Id)
             };
 
             return guildData;

@@ -9,13 +9,13 @@ namespace Discord_Bot.Commands
 {
     internal class CModuleSimpleMaths : BaseCommandModule
     {
-        public DiscordEmbedBuilderHelper Embed;
-
         [Command("add")]
         [Description("I can add mutiple numbers.")]
         public async Task Sum(CommandContext ctx, params int[] numbers)
         {
-            DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl)
+                .WithColor(DiscordColor.CornflowerBlue);
             if (numbers.Length > 0)
             {
                 embed.AddField($"The sum of {string.Join(", ", numbers)} is...", $"```fix\n{numbers.Sum()}```");
@@ -32,7 +32,9 @@ namespace Discord_Bot.Commands
         [Description("I can subtract multiple numbers.")]
         public async Task Subtract(CommandContext ctx, params int[] numbers)
         {
-            DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl)
+                .WithColor(DiscordColor.CornflowerBlue);
 
             if (numbers.Length > 0)
             {
@@ -55,7 +57,9 @@ namespace Discord_Bot.Commands
         [Description("I can multiply multiple numbers.")]
         public async Task Multiply(CommandContext ctx, params int[] numbers)
         {
-            DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl)
+                .WithColor(DiscordColor.CornflowerBlue);
             if (numbers.Length > 0)
             {
                 int result = 1;

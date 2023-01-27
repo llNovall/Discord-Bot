@@ -4,7 +4,6 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -37,7 +36,7 @@ namespace Discord_Bot.Commands
             {
                 foreach (var item in guilds)
                 {
-                    _loggerStatus.Add(item.Key, GuildManager.GetLoggerStatusForGuild(item.Value));
+                    _loggerStatus.Add(item.Key, GuildManager.GetStatusForServiceForGuild(item.Value, "log"));
                 }
             });
 
@@ -64,7 +63,7 @@ namespace Discord_Bot.Commands
             if (adminChannel == null)
                 return;
 
-            if (!await GuildManager.UpdateLoggerStatusForGuild(ctx.Guild, true))
+            if (!await GuildManager.UpdateStatusForServiceForGuild(ctx.Guild, "log", true))
             {
                 await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, "Failed to update log status.");
                 return;
@@ -92,7 +91,7 @@ namespace Discord_Bot.Commands
             if (adminChannel == null)
                 return;
 
-            await GuildManager.UpdateLoggerStatusForGuild(ctx.Guild, false);
+            await GuildManager.UpdateStatusForServiceForGuild(ctx.Guild, "log", false);
 
             if (_loggerStatus.ContainsKey(ctx.Guild.Id))
                 _loggerStatus[ctx.Guild.Id] = false;
@@ -117,7 +116,7 @@ namespace Discord_Bot.Commands
             if (channel == null)
                 return;
 
-            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Invite.Inviter, DiscordColor.Lilac);
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(sender.CurrentUser, DiscordColor.Lilac);
 
             embed.WithTitle("Invite Deleted");
 
@@ -137,7 +136,7 @@ namespace Discord_Bot.Commands
             if (channel == null)
                 return;
 
-            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Invite.Inviter, DiscordColor.Lilac);
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(sender.CurrentUser, DiscordColor.Lilac);
 
             embed.WithTitle("Invite Created")
                 .WithDescription($"{e.Invite.Inviter.Mention} created an invite with code {e.Invite.Code}.");
@@ -201,7 +200,7 @@ namespace Discord_Bot.Commands
             DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Member, DiscordColor.Lilac);
 
             embed.WithTitle("Member Left")
-                .WithDescription($"{e.Member.Mention} has left {e.Guild.Name}.");
+                .WithDescription($"{e.Member.Mention} left {e.Guild.Name}.");
 
             await channel.SendMessageAsync(embed);
         }
@@ -286,7 +285,7 @@ namespace Discord_Bot.Commands
             if (e.MessageBefore == e.Message)
                 return;
 
-            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Message.Author, DiscordColor.Lilac);
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(sender.CurrentUser, DiscordColor.Lilac);
 
             embed.WithTitle("Message Updated")
                 .AddField("Author", $"{e.Message.Author.Mention}")
@@ -305,12 +304,15 @@ namespace Discord_Bot.Commands
             if (!IsLoggingEnabled(e.Guild.Id))
                 return;
 
+            if (string.IsNullOrWhiteSpace(e.Message.Content))
+                return;
+
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
 
             if (channel == null)
                 return;
 
-            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(e.Message.Author, DiscordColor.Lilac);
+            DiscordEmbedBuilder embed = Helper.CreateEmbedBuilder(sender.CurrentUser, DiscordColor.Lilac);
 
             embed.WithTitle("Message Deleted")
                 .AddField("Author", $"{e.Message.Author.Mention}")
