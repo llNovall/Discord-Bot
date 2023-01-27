@@ -252,7 +252,7 @@ namespace Discord_Bot.Services
 
                     musicPlayerData.AddATrackToPlaylist(foundTrack, discordMember.DisplayName);
 
-                    if (musicPlayerData.CurrentMusicPlayerState != MusicPlayerData.MusicPlayerState.Stop) continue;
+                    if (musicPlayerData.CurrentMusicPlayerState is MusicPlayerData.MusicPlayerState.Play or MusicPlayerData.MusicPlayerState.Pause) continue;
                     LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
                     await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
 

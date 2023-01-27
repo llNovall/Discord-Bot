@@ -94,7 +94,7 @@ namespace Discord_Bot.Services
             {
                 if (item.Track is FullTrack track)
                 {
-                    trackNames.Add(track.Name + track.Album.Name);
+                    trackNames.Add(track.Name + " - " + track.Album.Name);
                 }
             }
 

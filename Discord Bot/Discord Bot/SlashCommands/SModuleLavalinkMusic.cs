@@ -207,7 +207,7 @@ namespace Discord_Bot.SlashCommands
             await ctx.DeleteResponseAsync();
         }
 
-        [SlashCommand("stop", "Stop the music player."), Aliases("skip")]
+        [SlashCommand("stop", "Stop the music player.")]
         public async Task StopSongAsync(InteractionContext ctx)
         {
             await ctx.DeferAsync(true);
