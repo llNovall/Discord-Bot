@@ -10,7 +10,6 @@ namespace Discord_Bot.Commands
     internal class CModuleLeagueOfLegends : BaseCommandModule
     {
         public WhatIsMyMMRService MMRService;
-        public DiscordEmbedBuilderHelper Embed;
 
         [Command("arammmr")]
         public async Task FindAramMMR(CommandContext ctx, string region, [RemainingText] string userName)
@@ -21,7 +20,9 @@ namespace Discord_Bot.Commands
 
                 if (data != null)
                 {
-                    DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
+                    DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                        .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl)
+                        .WithColor(DiscordColor.CornflowerBlue);
 
                     embed.WithTitle($"ARAM MMR for *{userName}* in *{region.ToUpper()}*");
                     embed.AddField($"Current MMR", $"{data.ARAM.Avg} ±{data.ARAM.Err}");
@@ -33,7 +34,9 @@ namespace Discord_Bot.Commands
                 else
 
                 {
-                    DiscordEmbedBuilder embed = Embed.GetDefaultEmbedTemplate(ctx.Client);
+                    DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
+                        .WithAuthor(name: ctx.Client.CurrentUser.Username, url: ctx.Client.CurrentUser.AvatarUrl, iconUrl: ctx.Client.CurrentUser.AvatarUrl)
+                        .WithColor(DiscordColor.CornflowerBlue);
                     embed.WithTitle($":no_entry: Give me proper values to search. :no_entry:");
                     await ctx.RespondAsync(embed);
                 }

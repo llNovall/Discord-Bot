@@ -9,7 +9,6 @@ namespace Discord_Bot.Commands
 {
     internal class CModuleGreet : BaseCommandModule
     {
-        public DiscordEmbedBuilderHelper EmbedHelper;
         public Random Random;
         public GIFTenorService GIFTenorService;
 

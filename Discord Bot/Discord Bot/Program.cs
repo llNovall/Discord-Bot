@@ -73,7 +73,6 @@ namespace Discord_Bot
 
             var services = new ServiceCollection().AddSingleton<Random>()
                                                               .AddSingleton<LavalinkMusicService>(lavalinkMusicService)
-                                                              .AddSingleton<DiscordEmbedBuilderHelper>()
                                                               .AddSingleton<GIFTenorService>()
                                                               .AddSingleton<WhatIsMyMMRService>()
                                                               .AddSingleton<DatabaseManager>(databaseManager)
