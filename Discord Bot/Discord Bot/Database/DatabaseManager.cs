@@ -19,47 +19,6 @@ namespace Discord_Bot.Database
             _connectionString = ConfigurationManager.ConnectionStrings["default_connection"].ToString();
         }
 
-        public async Task<GuildChannelUsageData> GetGuildChannelUsageData(ulong guildId, string channel_usage_type)
-        {
-            string query = "SELECT [guild_id], [channel_usage_type], [channel_id] FROM [DbDiscord].[dbo].[TbGuildChannelUsage] WHERE [guild_id] = @GuildId AND [channel_usage_type] = @Channel_usage_type";
-
-            GuildChannelUsageData data = new GuildChannelUsageData();
-
-            try
-            {
-                using (SqlConnection myConnection = new SqlConnection(_connectionString))
-                {
-                    using (SqlCommand oCmd = new SqlCommand(query, myConnection))
-                    {
-                        oCmd.Parameters.Add("@GuildId", System.Data.SqlDbType.BigInt).Value = guildId;
-                        oCmd.Parameters.Add("@Channel_usage_type", System.Data.SqlDbType.VarChar).Value = channel_usage_type;
-
-                        await myConnection.OpenAsync();
-
-                        using (SqlDataReader oReader = await oCmd.ExecuteReaderAsync())
-                        {
-                            while (await oReader.ReadAsync())
-                            {
-                                data.GuildId = Convert.ToUInt64(oReader["guild_id"]);
-                                data.ChannelUsageType = oReader["channel_usage_type"].ToString();
-                                data.ChannelId = Convert.ToUInt64(oReader["channel_id"]);
-                            }
-
-                            myConnection.Close();
-                        }
-                    }
-
-                    await myConnection.CloseAsync();
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.Log(LogLevel.Error, message: $"Failed to retreive values for channel usage {channel_usage_type} for guild {guildId}.\n Error : {e.Message}");
-            }
-
-            return data;
-        }
-
         public async Task<bool> UpdateChannelUsageForChannel(ulong guildId, ulong channelId, string channel_usage_type)
         {
             try
@@ -252,7 +211,7 @@ namespace Discord_Bot.Database
 
         public async Task<bool> GetLoggerStatusForGuild(ulong guildId)
         {
-            string query = "SELECT [is_enabled]FROM [DbDiscord].[dbo].[TbLogger] WHERE [guild_id] = @GuildId";
+            string query = "SELECT [is_enabled] FROM [DbDiscord].[dbo].[TbLogger] WHERE [guild_id] = @GuildId";
 
             bool isLoggerEnabled = false;
             try
@@ -285,6 +244,79 @@ namespace Discord_Bot.Database
             }
 
             return isLoggerEnabled;
+        }
+
+        public async Task<Dictionary<string, bool>> GetServiceStatusForGuild(ulong guildId)
+        {
+            string query = "SELECT [service_name], [is_enabled] FROM [DbDiscord].[dbo].[TbServiceStatus] WHERE [guild_id] = @GuildId";
+
+            Dictionary<string, bool> serviceDict = new();
+            try
+            {
+                using (SqlConnection myConnection = new SqlConnection(_connectionString))
+                {
+                    using (SqlCommand oCmd = new SqlCommand(query, myConnection))
+                    {
+                        oCmd.Parameters.Add("@GuildId", System.Data.SqlDbType.BigInt).Value = guildId;
+
+                        await myConnection.OpenAsync();
+
+                        using (SqlDataReader oReader = await oCmd.ExecuteReaderAsync())
+                        {
+                            while (await oReader.ReadAsync())
+                            {
+                                serviceDict.Add(oReader["service_name"].ToString(), (bool)oReader["is_enabled"]);
+                            }
+
+                            myConnection.Close();
+                        }
+                    }
+
+                    await myConnection.CloseAsync();
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.Log(LogLevel.Error, message: $"Failed to retreive values for logger status for guild {guildId}.\n Error : {e.Message}");
+            }
+
+            return serviceDict;
+        }
+
+        public async Task<bool> UpdateStatusForServiceForGuild(ulong guildId, string serviceName, bool isEnabled)
+        {
+            try
+            {
+                string query = "IF NOT EXISTS (SELECT * FROM DbDiscord.dbo.TbGuild WHERE guild_id = @GuildId) " +
+                               "INSERT INTO DbDiscord.dbo.TbGuild (guild_id) VALUES (@GuildId) " +
+                               "IF NOT EXISTS (SELECT * FROM DbDiscord.dbo.TbService WHERE service_name = @ServiceName) " +
+                               "INSERT INTO DbDiscord.dbo.TbService (service_name) VALUES (@ServiceName) " +
+                               "UPDATE DbDiscord.dbo.TbServiceStatus set is_enabled = @IsEnabled WHERE guild_id = @GuildId AND service_name = @ServiceName " +
+                               "IF @@ROWCOUNT=0 INSERT INTO DbDiscord.dbo.TbServiceStatus (guild_id, service_name, is_enabled) values(@GuildId, @ServiceName, @IsEnabled)";
+
+                using (SqlConnection myConnection = new SqlConnection(_connectionString))
+                {
+                    using (SqlCommand oCmd = new SqlCommand(query, myConnection))
+                    {
+                        oCmd.Parameters.Add("@GuildId", System.Data.SqlDbType.BigInt).Value = guildId;
+                        oCmd.Parameters.Add("@ServiceName", System.Data.SqlDbType.VarChar).Value = serviceName;
+                        oCmd.Parameters.Add("@IsEnabled", System.Data.SqlDbType.Bit).Value = isEnabled ? 1 : 0;
+
+                        await myConnection.OpenAsync();
+
+                        await oCmd.ExecuteNonQueryAsync();
+                    }
+
+                    await myConnection.CloseAsync();
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                _logger.Log(LogLevel.Error, message: $"Failed to update status for service {serviceName} for guild {guildId}.\n Error : {e.Message}");
+            }
+
+            return false;
         }
     }
 }

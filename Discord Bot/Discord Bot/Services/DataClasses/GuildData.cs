@@ -6,5 +6,5 @@ public class GuildData
 {
     public Dictionary<string, ulong> ChannelsDict = new();
     public Dictionary<string, ulong> RolesDict = new();
-    public bool IsLoggerEnabled;
+    public Dictionary<string, bool> ServiceStatusDict = new();
 }
