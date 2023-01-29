@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 namespace Discord_Bot.Commands
 {
     [RequireUserPermissions(Permissions.Administrator)]
+    [Category("Admin")]
     internal class CModuleAdmin : BaseCommandModule
     {
         public GuildManager GuildManager;
@@ -15,6 +16,7 @@ namespace Discord_Bot.Commands
         public Helper Helper;
 
         [Command("ch")]
+        [Description("Get all the channels which are assigned for different services\nUsage - **[Prefix]ch**")]
         public async Task GetChannelsForGuildAsync(CommandContext ctx)
         {
             var adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -48,6 +50,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("setch")]
+        [Description("Set a channel for specific service.\nUsage - **[Prefix]setch [Channel] [ServiceName]**")]
         public async Task SetChannelForAsync(CommandContext ctx, DiscordChannel channel, string channelUsage)
         {
             var adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -71,6 +74,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("ping")]
+        [Description("Displays current ping.\nUsage - **[Prefix]ping**")]
         public async Task PingAsync(CommandContext ctx)
         {
             DiscordEmbedBuilder embed = new()
@@ -83,6 +87,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("setadminchannel")]
+        [Description("Sets a channel for admin service.\nUsage - **[Prefix]setadminchannel [Channel]**")]
         public async Task SetAdminChannelAsync(CommandContext ctx, DiscordChannel discordChannel)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -109,6 +114,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("setmusicchannel")]
+        [Description("Sets a channel for music service.\nUsage - **[Prefix]setmusicchannel [Channel]**")]
         public async Task SetMusicChannelAsync(CommandContext ctx, DiscordChannel discordChannel)
         {
             var adminChannel = GuildManager.GetChannelFor("admin", ctx);
