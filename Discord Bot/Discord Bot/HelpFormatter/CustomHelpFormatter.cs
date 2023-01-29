@@ -44,11 +44,11 @@ namespace Discord_Bot.HelpFormatter
                 _embed.AddField(cmd.Name, cmd.Description);
             }
 
-            DiscordMessageBuilder messageBuilder = new DiscordMessageBuilder().WithContent("Help");
+            DiscordMessageBuilder messageBuilder = new DiscordMessageBuilder().WithContent("```fix\r\nAvailable Commands\r\n```");
 
             foreach (var item in commandsDict)
             {
-                DiscordEmbedBuilder embed = new DiscordEmbedBuilder().WithColor(DiscordColor.Chartreuse);
+                DiscordEmbedBuilder embed = new DiscordEmbedBuilder().WithColor(DiscordColor.Rose);
                 embed.WithTitle(item.Key);
 
                 foreach (var cmd in item.Value)

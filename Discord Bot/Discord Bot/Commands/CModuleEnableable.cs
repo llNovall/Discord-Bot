@@ -49,7 +49,7 @@ namespace Discord_Bot.Commands
             });
         }
 
-        protected async Task EnableModuleAsync(CommandContext ctx, DiscordChannel channelToAssign)
+        protected async Task EnableModuleAsync(CommandContext ctx, DiscordChannel channelToAssign = null)
         {
             DiscordChannel adminChannel = await Helper.GetAdminChannel(ctx);
 
@@ -62,11 +62,12 @@ namespace Discord_Bot.Commands
                 return;
             }
 
-            if (!await GuildManager.UpdateChannelUsageForChannel(ctx.Guild, channelToAssign, _serviceName))
-            {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Failed to set channel for {_serviceName}.");
-                return;
-            }
+            if (channelToAssign != null)
+                if (!await GuildManager.UpdateChannelUsageForChannel(ctx.Guild, channelToAssign, _serviceName))
+                {
+                    await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Failed to set channel for {_serviceName}.");
+                    return;
+                }
 
             if (_status.ContainsKey(ctx.Guild.Id))
                 _status[ctx.Guild.Id] = true;

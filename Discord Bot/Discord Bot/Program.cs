@@ -21,6 +21,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Discord_Bot.HelpFormatter;
+using DSharpPlus.Entities;
 
 namespace Discord_Bot
 {
@@ -90,7 +91,7 @@ namespace Discord_Bot
                 EnableDefaultHelp = true,
                 IgnoreExtraArguments = true,
                 UseDefaultCommandHandler = true,
-                Services = services
+                Services = services,
             };
 
             Commands = DiscordClient.UseCommandsNext(commandsNextConfiguration);
@@ -104,6 +105,7 @@ namespace Discord_Bot
             Commands.RegisterCommands<CModuleLavalinkPlayer>();
             Commands.RegisterCommands<CModuleLogger>();
             Commands.RegisterCommands<CModuleMessageBuilder>();
+            Commands.RegisterCommands<CModuleDisplayMemberUpdate>();
             //Commands.RegisterCommands<CModuleTest>();
             Commands.CommandExecuted += Commands_CommandExecuted;
             Commands.CommandErrored += Commands_CommandErrored;
@@ -130,7 +132,7 @@ namespace Discord_Bot
                 ResponseMessage = "Failed Interaction or something"
             });
 
-            await DiscordClient.ConnectAsync();
+            await DiscordClient.ConnectAsync(new DiscordActivity("The 1975 ~ It's Not Living", ActivityType.ListeningTo), UserStatus.Online, DateTimeOffset.Now);
             await InitializeLavalink(DiscordClient);
 
             await Task.Delay(-1);
@@ -140,7 +142,7 @@ namespace Discord_Bot
         {
             sender.Logger.LogCritical(BotId, $"Failed heartbeat : {e.Failures}");
             e.Handled = true;
-            sender.ReconnectAsync();
+            sender.ReconnectAsync(true);
             return Task.CompletedTask;
         }
 
