@@ -132,7 +132,10 @@ namespace Discord_Bot.Services
 
             GuildData guildData = _guildData[discordGuild.Id];
 
-            return guildData.ServiceStatusDict.ContainsKey(serviceName) ? guildData.ServiceStatusDict[serviceName] : false;
+            if (guildData.ServiceStatusDict.ContainsKey(serviceName))
+                return guildData.ServiceStatusDict[serviceName];
+
+            return false;
         }
 
         public async Task<bool> UpdateStatusForServiceForGuild(DiscordGuild discordGuild, string serviceName, bool isEnabled)

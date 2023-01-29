@@ -11,32 +11,23 @@ using System.Threading.Tasks;
 namespace Discord_Bot.Commands
 {
     [RequireUserPermissions(Permissions.Administrator)]
-    internal class CModuleLogger : BaseCommandModule
+    internal class CModuleLogger : CModuleEnableable
     {
-        public GuildManager GuildManager;
-        public DiscordClient DiscordClient;
-        public Helper Helper;
-
-        private Dictionary<ulong, bool> _loggerStatus = new();
-
         public CModuleLogger()
         {
-            Initialize().GetAwaiter();
+            _serviceName = "log";
+
+            base.Initialize().GetAwaiter();
+
+            InitializeLoggerAsync().GetAwaiter();
         }
 
-        private async Task Initialize()
+        private async Task InitializeLoggerAsync()
         {
-            await Task.Run(() => { while (DiscordClient == null) { } });
-
-            var guilds = DiscordClient.Guilds;
-
-            await Task.Run(() => { while (!GuildManager.IsReady) { } });
-
             await Task.Run(() =>
             {
-                foreach (var item in guilds)
+                while (DiscordClient == null)
                 {
-                    _loggerStatus.Add(item.Key, GuildManager.GetStatusForServiceForGuild(item.Value, "log"));
                 }
             });
 
@@ -58,57 +49,21 @@ namespace Discord_Bot.Commands
         [Command("enablelog")]
         public async Task EnableLogAsync(CommandContext ctx, DiscordChannel logChannel)
         {
-            DiscordChannel adminChannel = await Helper.GetAdminChannel(ctx);
-
-            if (adminChannel == null)
-                return;
-
-            if (!await GuildManager.UpdateStatusForServiceForGuild(ctx.Guild, "log", true))
-            {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, "Failed to update log status.");
-                return;
-            }
-
-            if (!await GuildManager.UpdateChannelUsageForChannel(ctx.Guild, logChannel, "log"))
-            {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, "Failed to set channel for log.");
-                return;
-            }
-
-            if (_loggerStatus.ContainsKey(ctx.Guild.Id))
-                _loggerStatus[ctx.Guild.Id] = true;
-            else
-                _loggerStatus.Add(ctx.Guild.Id, true);
-
-            await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Positive, $"Enabled logging.");
+            await EnableModuleAsync(ctx, logChannel);
         }
 
         [Command("disablelog")]
         public async Task DisableLogAsync(CommandContext ctx)
         {
-            DiscordChannel adminChannel = await Helper.GetAdminChannel(ctx);
-
-            if (adminChannel == null)
-                return;
-
-            await GuildManager.UpdateStatusForServiceForGuild(ctx.Guild, "log", false);
-
-            if (_loggerStatus.ContainsKey(ctx.Guild.Id))
-                _loggerStatus[ctx.Guild.Id] = false;
-            else
-                _loggerStatus.Add(ctx.Guild.Id, false);
-
-            await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Positive, $"Disabled logging.");
+            await DisableModuleAsync(ctx);
         }
-
-        private bool IsLoggingEnabled(ulong guildId) => _loggerStatus.ContainsKey(guildId) && _loggerStatus[guildId];
 
         private async Task DiscordClient_InviteDeleted(DiscordClient sender, InviteDeleteEventArgs e)
         {
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -128,7 +83,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -149,7 +104,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -169,7 +124,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -189,7 +144,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -210,7 +165,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -230,7 +185,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -274,7 +229,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -301,7 +256,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             if (string.IsNullOrWhiteSpace(e.Message.Content))
@@ -327,7 +282,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
@@ -348,7 +303,7 @@ namespace Discord_Bot.Commands
             if (e.Guild == null)
                 return;
 
-            if (!IsLoggingEnabled(e.Guild.Id))
+            if (!IsServiceEnabled(e.Guild.Id))
                 return;
 
             DiscordChannel channel = GuildManager.GetChannelFor("log", e.Guild);
