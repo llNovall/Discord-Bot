@@ -3,10 +3,10 @@ using Discord_Bot.Services.DataClasses;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
+using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using DSharpPlus.SlashCommands;
 
 namespace Discord_Bot.Services
 {
@@ -132,7 +132,10 @@ namespace Discord_Bot.Services
 
             GuildData guildData = _guildData[discordGuild.Id];
 
-            return guildData.ServiceStatusDict.ContainsKey(serviceName) ? guildData.ServiceStatusDict[serviceName] : false;
+            if (guildData.ServiceStatusDict.ContainsKey(serviceName))
+                return guildData.ServiceStatusDict[serviceName];
+
+            return false;
         }
 
         public async Task<bool> UpdateStatusForServiceForGuild(DiscordGuild discordGuild, string serviceName, bool isEnabled)

@@ -1,14 +1,18 @@
 ﻿using Discord_Bot.Commands;
 using Discord_Bot.Config;
 using Discord_Bot.Database;
+using Discord_Bot.HelpFormatter;
 using Discord_Bot.Services;
+using Discord_Bot.SlashCommands;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
+using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,10 +22,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DSharpPlus.SlashCommands;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Security.Policy;
-using Discord_Bot.SlashCommands;
 
 namespace Discord_Bot
 {
@@ -91,11 +91,11 @@ namespace Discord_Bot
                 EnableDefaultHelp = true,
                 IgnoreExtraArguments = true,
                 UseDefaultCommandHandler = true,
-                Services = services
+                Services = services,
             };
 
             Commands = DiscordClient.UseCommandsNext(commandsNextConfiguration);
-
+            Commands.SetHelpFormatter<CustomHelpFormatter>();
             Commands.RegisterCommands<CModuleGreet>();
             Commands.RegisterCommands<CModuleSimpleMaths>();
             Commands.RegisterCommands<CModuleLavalinkMusic>();
@@ -105,6 +105,7 @@ namespace Discord_Bot
             Commands.RegisterCommands<CModuleLavalinkPlayer>();
             Commands.RegisterCommands<CModuleLogger>();
             Commands.RegisterCommands<CModuleMessageBuilder>();
+            Commands.RegisterCommands<CModuleDisplayMemberUpdate>();
             //Commands.RegisterCommands<CModuleTest>();
             Commands.CommandExecuted += Commands_CommandExecuted;
             Commands.CommandErrored += Commands_CommandErrored;
@@ -131,7 +132,7 @@ namespace Discord_Bot
                 ResponseMessage = "Failed Interaction or something"
             });
 
-            await DiscordClient.ConnectAsync();
+            await DiscordClient.ConnectAsync(new DiscordActivity("The 1975 ~ It's Not Living", ActivityType.ListeningTo), UserStatus.Online, DateTimeOffset.Now);
             await InitializeLavalink(DiscordClient);
 
             await Task.Delay(-1);
@@ -141,7 +142,7 @@ namespace Discord_Bot
         {
             sender.Logger.LogCritical(BotId, $"Failed heartbeat : {e.Failures}");
             e.Handled = true;
-            sender.ReconnectAsync();
+            sender.ReconnectAsync(true);
             return Task.CompletedTask;
         }
 
@@ -166,7 +167,7 @@ namespace Discord_Bot
 
             var guildManager = (GuildManager)Commands.Services.GetService(typeof(GuildManager));
             if (guildManager != null)
-                await guildManager.LoadGuildDataFromDatabase(DiscordClient.Guilds.Select(c => c.Value));
+                await guildManager?.LoadGuildDataFromDatabase(DiscordClient.Guilds.Select(c => c.Value));
         }
 
         private async Task InitializeLavalink(DiscordClient discordClient)

@@ -1,18 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Discord_Bot.Services.DataClasses;
-using Discord_Bot.Services;
-using DSharpPlus.CommandsNext.Attributes;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Lavalink;
+﻿using Discord_Bot.Services;
 using DSharpPlus;
-using DSharpPlus.Interactivity.Extensions;
+using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
+using System.Threading.Tasks;
 
 namespace Discord_Bot.SlashCommands
 {

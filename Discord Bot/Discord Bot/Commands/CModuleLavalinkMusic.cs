@@ -4,24 +4,23 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Discord_Bot.Commands
 {
-    //[Group("Music")]
-    //[Description("This is all the music commands I have at the moment. Feel free to let me know if you need more.")]
-    internal class CModuleLavalinkMusic : BaseCommandModule
+    [Category("Music")]
+    internal class CModuleLavalinkMusic : CModuleEnableable
     {
         public LavalinkMusicService LavalinkMusicService;
-        public GuildManager GuildManager;
         public SpotifyService SpotifyService;
-        public Helper Helper;
+
+        public CModuleLavalinkMusic()
+        {
+            _serviceName = "music";
+
+            Initialize().GetAwaiter();
+        }
 
         private async Task SendStatusMessage(BaseDiscordClient client, DiscordChannel musicChannel, LavalinkMusicService.Status status)
         {
@@ -261,7 +260,22 @@ namespace Discord_Bot.Commands
             return (musicPlayerData, musicChannel);
         }
 
+        [Command("enablemusic")]
+        [Description("Enable music.\nUsage - **[Prefix]enablemusic [Channel]**")]
+        public async Task EnableMusicAsync(CommandContext ctx, DiscordChannel musicChannel)
+        {
+            await EnableModuleAsync(ctx, musicChannel);
+        }
+
+        [Command("disablemusic")]
+        [Description("Disables music.\nUsage - **[Prefix]disablemusic**")]
+        public async Task DisableMusicAsync(CommandContext ctx)
+        {
+            await DisableModuleAsync(ctx);
+        }
+
         [Command("join")]
+        [Description("Joins your current channel.\nUsage - **[Prefix]join**")]
         public async Task JoinChannelAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -276,9 +290,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -288,6 +309,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("leave")]
+        [Description("Leaves the channel the bot is in currently.\nUsage - **[Prefix]leave**")]
         public async Task LeaveChannelAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -302,9 +324,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -314,43 +343,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("queue")]
-        public async Task QueueSongAsync(CommandContext ctx, [RemainingText] Uri search)
-        {
-            var result = await GetMusicPlayerDataAndMusicChannel(
-                discordClient: ctx.Client,
-                discordGuild: ctx.Guild,
-                altChannelToSendMessage: ctx.Channel,
-                discordMember: ctx.Member);
-
-            MusicPlayerData musicPlayerData = result.Item1;
-            DiscordChannel musicChannel = result.Item2;
-
-            if (musicPlayerData == null || musicChannel == null) return;
-
-            LavalinkLoadResult loadResult = await musicPlayerData.LavalinkGuildConnection.GetTracksAsync(search);
-
-            if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches)
-            {
-                await SendMessageToChannel(
-                        discordClient: ctx.Client,
-                        status: MessageStatus.NoTracksFound,
-                        channelToSendMessage: musicChannel,
-                        messageSeverity: MessageSeverity.Negative);
-                return;
-            }
-
-            musicPlayerData.AddATrackToPlaylist(loadResult.Tracks.First(), ctx.Member.DisplayName);
-
-            if (musicPlayerData.CurrentMusicPlayerState == MusicPlayerData.MusicPlayerState.Stop)
-            {
-                LavalinkTrack track = musicPlayerData.GetNextTrack().Track;
-                await musicPlayerData.LavalinkGuildConnection.PlayAsync(track);
-
-                musicPlayerData.CurrentMusicPlayerState = MusicPlayerData.MusicPlayerState.Play;
-            }
-        }
-
-        [Command("queue")]
+        [Description("Pass a search term, youtube or spotify link to add songs to the playlist.\nUsage - **[Prefix]queue [search / link]**")]
         public async Task QueueSongAsync(CommandContext ctx, [RemainingText] string search)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -365,9 +358,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -377,6 +377,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("pause")]
+        [Description("Pauses the music player.\nUsage - **[Prefix]pause**")]
         public async Task PauseSongAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -393,7 +394,14 @@ namespace Discord_Bot.Commands
 
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                return;
+            }
+
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
                 return;
             }
 
@@ -403,6 +411,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("resume")]
+        [Description("Resumes the music player.\nUsage - **[Prefix]resume**")]
         public async Task ResumeSongAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -417,9 +426,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -429,6 +445,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("stop"), Aliases("skip")]
+        [Description("Skips current song.\nUsage - **[Prefix]stop**")]
         public async Task StopSongAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -443,9 +460,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -455,6 +479,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("clear")]
+        [Description("Clears current playlist.\nUsage - **[Prefix]clear**")]
         public async Task ClearPlaylistAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -469,9 +494,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -481,6 +513,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("shuffle")]
+        [Description("Shuffles current playlist.\nUsage - **[Prefix]shuffle**")]
         public async Task ShufflePlaylistAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -495,9 +528,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -507,6 +547,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("showqueue")]
+        [Description("Displays all the songs in current playlist.\nUsage - **[Prefix]showqueue**")]
         public async Task ShowQueueAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -521,9 +562,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
@@ -533,6 +581,7 @@ namespace Discord_Bot.Commands
         }
 
         [Command("np")]
+        [Description("Displays the current song.\nUsage - **[Prefix]np**")]
         public async Task ShowNowPlayingAsync(CommandContext ctx)
         {
             DiscordChannel adminChannel = GuildManager.GetChannelFor("admin", ctx);
@@ -547,9 +596,16 @@ namespace Discord_Bot.Commands
                 return;
             }
 
+            if (!IsServiceEnabled(ctx.Guild.Id))
+            {
+                await Helper.SendMessageToChannelAsync(ctx.Client, musicChannel, Helper.MessageSeverity.Negative,
+                    "Please enable music by using command **enablemusic**");
+                return;
+            }
+
             if (musicChannel != ctx.Channel)
             {
-                await Helper.SendMessageToChannelAsync(ctx.Client, adminChannel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
+                await Helper.SendMessageToChannelAsync(ctx.Client, ctx.Channel, Helper.MessageSeverity.Negative, $"Use the channel {musicChannel.Name} to execute this command.");
                 return;
             }
 
