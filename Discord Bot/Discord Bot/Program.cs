@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Discord_Bot.HelpFormatter;
 
 namespace Discord_Bot
 {
@@ -93,7 +94,7 @@ namespace Discord_Bot
             };
 
             Commands = DiscordClient.UseCommandsNext(commandsNextConfiguration);
-
+            Commands.SetHelpFormatter<CustomHelpFormatter>();
             Commands.RegisterCommands<CModuleGreet>();
             Commands.RegisterCommands<CModuleSimpleMaths>();
             Commands.RegisterCommands<CModuleLavalinkMusic>();
@@ -164,7 +165,7 @@ namespace Discord_Bot
 
             var guildManager = (GuildManager)Commands.Services.GetService(typeof(GuildManager));
             if (guildManager != null)
-                await guildManager.LoadGuildDataFromDatabase(DiscordClient.Guilds.Select(c => c.Value));
+                await guildManager?.LoadGuildDataFromDatabase(DiscordClient.Guilds.Select(c => c.Value));
         }
 
         private async Task InitializeLavalink(DiscordClient discordClient)
