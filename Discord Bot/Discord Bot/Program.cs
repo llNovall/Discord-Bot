@@ -1,10 +1,12 @@
 ﻿using Discord_Bot.Commands;
 using Discord_Bot.Config;
 using Discord_Bot.Database;
+using Discord_Bot.HelpFormatter;
 using Discord_Bot.Services;
 using Discord_Bot.SlashCommands;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
@@ -20,8 +22,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Discord_Bot.HelpFormatter;
-using DSharpPlus.Entities;
 
 namespace Discord_Bot
 {

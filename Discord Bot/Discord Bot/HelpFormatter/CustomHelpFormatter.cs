@@ -1,12 +1,8 @@
-﻿using DSharpPlus.CommandsNext.Converters;
+﻿using DSharpPlus.CommandsNext;
+using DSharpPlus.CommandsNext.Converters;
 using DSharpPlus.CommandsNext.Entities;
-using DSharpPlus.CommandsNext;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using DSharpPlus.Entities;
+using System.Collections.Generic;
 
 namespace Discord_Bot.HelpFormatter
 {

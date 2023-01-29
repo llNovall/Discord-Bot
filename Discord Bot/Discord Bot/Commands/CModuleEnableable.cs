@@ -1,13 +1,9 @@
 ﻿using Discord_Bot.Services;
 using DSharpPlus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using DSharpPlus.CommandsNext;
-using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Discord_Bot.Commands
 {
